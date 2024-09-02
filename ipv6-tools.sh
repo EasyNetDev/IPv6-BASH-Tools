@@ -258,21 +258,6 @@ ipv6_leading_zero_compression()
 		fi
 	done
 
-	# Decrese one position. We count the positions from 0 and last character is at strlen of IPv6 minus 1
-	#((IDX--))
-
-	# In case last position in IPv6 is greater than IPv6_DELIM_POS, we have a last group in IPv6
-	#if [[ ${IPv6_DELIM_IPv6_SKIP_0_SUBBLOCKPOS} -lt ${i} ]]; then
-	#	# Add group to IPv6_BEFORE_GROUPS or IPv6_AFTER_GROUPS
-	#	if [[ ${IPv6_COMPRESS_GROUP} -eq 0 ]]; then
-	#		# Remove leading zeros and convert to hexa
-	#		IPv6_BEFORE_GROUPS+=( $(printf "0x%x" 0x${IPv6_SUBBLOCK}) )
-	#	else
-	#		# Remove leading zeros and convert to hexa
-	#		IPv6_BEFORE_GROUPS+=( $(printf "0x%x" 0x${IPv6_SUBBLOCK}) )
-	#	fi
-	#fi
-
 	# Rewrite hex value of IPv6 sub-block without leading 0s
 	IPv6=""
 
@@ -372,27 +357,16 @@ ipv6_uncompress()
 				IPv6_AFTER_GROUPS+=( $(printf "0x%x" 0x${IPv6_SUBBLOCK}) )
 			fi
 			IPv6_SUBBLOCK=""
+			continue
 		else
 			IPv6_DELIM=0
 			IPv6_SUBBLOCK+="${C_CHAR}"
 		fi
-	done
-
-	# Decrese one position. We count the positions from 0 and last character is at strlen of IPv6 minus 1
-	((IDX--))
-
-	# In case last position in IPv6 is greater than IPv6_DELIM_POS, we have a last group in IPv6
-	#${ECHO_DEBUG} "IPv6_DELIM_POS=${IPv6_DELIM_POS} IDX=${IDX}"
-	if [[ ${IPv6_DELIM_POS} -lt ${IDX} ]]; then
-		# Add group to IPv6_BEFORE_GROUPS or IPv6_AFTER_GROUPS
-		if [[ $IPv6_COMPRESS_GROUP -eq 0 ]]; then
-			# Remove leading zeros and convert to hexa
-			IPv6_BEFORE_GROUPS+=( $(printf "0x%x" 0x${IPv6_SUBBLOCK}) )
-		else
-			# Remove leading zeros and convert to hexa
+		# This is the last group
+		if [[ ${IDX} -eq $((${#IPv6}-1)) ]]; then
 			IPv6_AFTER_GROUPS+=( $(printf "0x%x" 0x${IPv6_SUBBLOCK}) )
 		fi
-	fi
+	done
 
 	((IPv6_TOTAL_GROUPS=${#IPv6_BEFORE_GROUPS[@]}+${#IPv6_AFTER_GROUPS[@]}))
 
