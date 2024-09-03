@@ -8,7 +8,7 @@ SCRIPT_PATH=$(dirname ${SCRIPT_PATH})
 
 #echo $SCRIPT_PATH
 
-if [[ -f "${SCRIPT_PATH}/ipv6-tools.sh" ]]; then
+if [[ -f "${SCRIPT_PATH}/libipv6-tools.sh" ]]; then
 	. ${SCRIPT_PATH}/ipv6-tools.sh
 else
 	echo "ERROR: Missing ipv6-tools.sh file!"
