@@ -115,7 +115,7 @@ ipv6_compression()
 		break
 	fi
 
-	${ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+	#${ECHO_DEBUG} "IPv6 ${tmpIPv6}"
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<8; IDX++)); do
 
@@ -132,7 +132,7 @@ ipv6_compression()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:((${SUBBLOCK_LEN}+1))}
-		${ECHO_DEBUG} "IPv6: ${tmpIPv6}"
+		#${ECHO_DEBUG} "IPv6: ${tmpIPv6}"
 
 		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
 		if [[ -z "$tmpIPv6" ]]; then
@@ -249,7 +249,7 @@ ipv6_uncompress()
 	local SUBBLOCK_LEN
 	local tmpIPv6="$IPv6"
 
-	${ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+	#${ECHO_DEBUG} "IPv6 ${tmpIPv6}"
 
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<40; IDX++)); do
@@ -293,7 +293,7 @@ ipv6_uncompress()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
 
 	done
 
@@ -319,7 +319,7 @@ ipv6_uncompress()
 	if [[ ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
 		# Walk through the IPv6 and check where is the compression.
 		((IPv6_ADD_0s=8-${IPv6_TOTAL_SUBBLOCKS}))
-		${ECHO_DEBUG} "We must add ${IPv6_ADD_0s} more of groups of 0s."
+		#${ECHO_DEBUG} "We must add ${IPv6_ADD_0s} more of groups of 0s."
 
 		# Build first part of the IPv6
 		IPv6=""
@@ -421,7 +421,7 @@ ipv6_leading_zero_compression()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
 
 	done
 
@@ -510,7 +510,7 @@ ipv6_check()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
 
 		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
 	done
