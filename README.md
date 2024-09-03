@@ -5,6 +5,9 @@ This tool is intended to be use in BASH scripts for routers to calculate for exa
 
 I've tried to use simple approach using simple IPv6 rules.
 
+# Short story
+This library I've created because I couldn't find anything written for BASH. Each time I had to write a BASH script to work with IPv6 I've faced issues to work with it.
+
 ## ipv6_compression()
 Compress IPv6 using these rules to compress:
 1. Search for sub-blocks.
