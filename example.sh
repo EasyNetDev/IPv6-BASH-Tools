@@ -9,7 +9,7 @@ SCRIPT_PATH=$(dirname ${SCRIPT_PATH})
 #echo $SCRIPT_PATH
 
 if [[ -f "${SCRIPT_PATH}/libipv6-tools.sh" ]]; then
-	. ${SCRIPT_PATH}/ipv6-tools.sh
+	. ${SCRIPT_PATH}/libipv6-tools.sh
 else
 	echo "ERROR: Missing ipv6-tools.sh file!"
 	exit 1
@@ -57,5 +57,13 @@ echo "4. IPv6 removing 0 leading tool:"
 for IPv6_TEST in "0000:0000:0000:0000:0000:0000:0000:0000" "1abc:2abc:0000:0000:0000:0000:0000:0000" "1abc:0000:0000:0000:0000:2abc:0000:0000" "1abc:0000::0000:2abc:0000:0000" "1abc:0000:0000:0000:2abc:0000:0000:0000" "1abc:0000:0000:2abc:0000:0000:0000:0000"; do
 	ipv6_leading_zero_compression "${IPv6_TEST}" "IPv6_TUN_6RD_ZERO_LEADING"
 	echo -e "  Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_ZERO_LEADING}"
+done
+#exit 0
+
+echo
+echo "5. IPv6 get first address of the subnet:"
+for IPv6_TEST in "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/28" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/32" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/36" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/42" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/48"; do
+	ipv6_first_subnet_address "${IPv6_TEST}" "IPv6_FIRST_ADDRESS"
+	echo -e "  The first IPv6 address ${IPv6_TEST} is ${IPv6_FIRST_ADDRESS}"
 done
 #exit 0

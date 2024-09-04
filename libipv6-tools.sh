@@ -86,8 +86,6 @@ ipv6_compression()
 
 	local IPv6_SUBBLOCK=( )
 
-	local REGEXP="([0-9a-fA-F])"
-
 	local IPv6_FIRST_0s=0
 
 	# Vars to save start and stop of the longes 0s groups
@@ -447,6 +445,125 @@ ipv6_leading_zero_compression()
 	else
 		eval ${2}="${IPv6}"
 	fi
+}
+
+ipv6_first_subnet_address()
+{
+	# Calculate the first address of IPv6 using the prefix
+	# Arguments:
+	#   $1 - IPv6 subnet (IPv6/PREFIX format).
+	#
+	# Optional Arguments:
+	#   $2 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#   IPv6 first address of the subnet.
+	#
+	# Exits:
+	#    1 - in case the IPv6 address is invalid.
+	#
+	# Output:
+	#   In case argument $2 is missing, print the result to output.
+	#
+	# To simplify the maths, we are using an array which contains 16 types of prefix masks and we will map prefixes from 0 to 15 to this array
+	# The array will contain:
+	# 0x0000 (0000000000000000b), 0x8000 (1000000000000000b), 0xC000 (1100000000000000b), 0xE000 (1110000000000000b), 0xF000 (1111000000000000b), 0xF800 (1111100000000000b), 0xFC00 (1111110000000000b), 0xFE00 (1111111000000000b), 0xFF00 (1111111100000000b),
+	# 0xFF80 (1111111110000000b), 0xFFC0 (1111111111000000b), 0xFFE0 (1111111111100000b), 0xFFF0 (1111111111110000b), 0xFFF8 (1111111111111000b), 0xFFFC (1111111111111100b), 0xFFFE (1111111111111110b)
+	#
+	# We are using 16 bits of mask because IPv6 has sub-blocks of 16 bits and will be easy to map each prefix sub-block to each uncompressed IPv6 sub-block.
+	#
+	# We will split the prefix in groups of 16 and reminder.
+	# For example:
+	#    Prefix 28: 28/16 = 1 and reminder 12. We will have only one group of 16 bits which by default will be 0xFFFF and second group will be 12 bits mapped to 0xFFF0 and the reset 0x0000.
+	#    Prefix 48: 42/16 = 2 and reminder 10. We will have only two groups of 16 bits which by default will be 0xFFFF and third group will be 10 bits mapped to 0xFFC0 and the reset 0x0000.
+	#
+
+	local IDX
+	local IPv6="$1"
+	local IPv6_PREFIX
+	local VAR_NAME=""
+
+	# Prefix to mask mapping using index in array
+	local PREFIX_MAP=( 0x0000 0x8000 0xC000 0xE000 0xF000 0xF800 0xFC00 0xFE00 0xFF00 0xFF80 0xFFC0 0xFFE0 0xFFF0 0xFFF8 0xFFFC 0xFFFE )
+
+	local IPv6_SUBBLOCKS=( )
+	# We will set IPv6 mask sub-blocks with 0x0000 by default
+	local IPv6_MASK_SUBBLOCKS=( 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 )
+	local newValue
+
+	IPv6_PREFIX=${IPv6#*/}
+	IPv6=${IPv6%/*}
+
+	# Check if we have IPv6/PREFIX format
+	if [[ "${IPv6_PREFIX}" == "${IPv6}" ]]; then
+		# Prefix couldn't be extracted from argument $IPv6, we will check the second argument
+		# Presume 128 prefix
+		IPv6_PREFIX=128
+	fi
+
+	if [[ ! "${IPv6_PREFIX}" =~ ^[0-9]+$ ]]; then
+		${ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Please correct the IPv6 string!"
+		exit 1
+	fi
+
+	if [[ ${IPv6_PREFIX} -lt 1 || ${IPv6_PREFIX} -gt 128 ]]; then
+		${ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Prefix must be between 1 and 128! Please correct the IPv6 string!"
+		exit 1
+	fi
+
+	local IPv6_SUBBLOCKS=( )
+
+	IPv6=$(ipv6_uncompress "${IPv6}")
+
+	IPv6_SUBBLOCKS=( ${IPv6//:/ } )
+
+	((SPLIT_PREFIX_1=${IPv6_PREFIX}/16))
+	((SPLIT_PREFIX_2=${IPv6_PREFIX}%16))
+
+	# Build an array for prefixes
+	# We have 2 bytes pre sub-block multipy by 8 sub-blocks = 16 and multipy by 8
+	for (( IDX=0; IDX<${SPLIT_PREFIX_1}; IDX++)); do
+		IPv6_MASK_SUBBLOCKS[${IDX}]=0xFFFF
+	done
+	IPv6_MASK_SUBBLOCKS[${IDX}]=${PREFIX_MAP[${SPLIT_PREFIX_2}]}
+
+	for IDX in ${!IPv6_SUBBLOCKS[@]}; do
+		((newValue=0x${IPv6_SUBBLOCKS[${IDX}]} & IPv6_MASK_SUBBLOCKS[${IDX}]))
+		IPv6_SUBBLOCKS[${IDX}]=$(printf "%x" ${newValue})
+	done
+
+	IPv6=${IPv6_SUBBLOCKS[@]}
+	IPv6=${IPv6// /:}
+	IPv6=$(ipv6_compression "${IPv6}")
+	IPv6="${IPv6}/${IPv6_PREFIX}"
+
+	if [[ -z "${2}" ]]; then
+		echo ${IPv6}
+	else
+		eval ${2}="${IPv6}"
+	fi
+}
+
+ipv6_last_subnet_address()
+{
+	# Calculate the last address of IPv6 using the prefix
+	# Arguments:
+	#   $1 - IPv6 subnet and optional prefix (IPv6 or IPv6/PREFIX).
+	#
+	# Optional Arguments:
+	#   $2 - IPv6 prefix (value between 1 to 128)
+	#   $3 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#   IPv6 first address of the subnet.
+	#
+	# Exits:
+	#    1 - in case the IPv6 address is invalid.
+	#
+	# Output:
+	#   In case argument $2 is missing, print the result to output.
+
+	:
 }
 
 ipv6_check()
