@@ -15,10 +15,10 @@
 #
 # echo_* functions can be override using ECHO_* variable to point to another function
 
-if [[ -z "${DEBUG}" ]]; then
-	DEBUG=0
+if [[ -z "${_DEBUG_}" ]]; then
+	_DEBUG_=0
 else
-	DEBUG=1
+	_DEBUG_=1
 fi
 
 if [[ -z "${ECHO_INFO}" ]]; then
@@ -40,7 +40,7 @@ fi
 if [[ -z "${ECHO_DEBUG}" ]]; then
 echo_debug()
 {
-	if [[ ${DEBUG} -eq 1 ]]; then
+	if [[ ${_DEBUG_} -eq 1 ]]; then
 		echo "DEBUG: $@" > /dev/stderr
 	fi
 }
