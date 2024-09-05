@@ -6,14 +6,21 @@
 #  2. printf from coreutils
 #
 # Avaiable functions:
-#  1. ipv6_compression               - Returns a compress format of an IPv6
-#  2. ipv6_leading_zero_compression  - Returns a compress format of an IPv6 from leading 0s.
-#  3. ipv6_uncompress                - Returns an uncompressed format of an IPv6
+#  1. ipv6_compression					- Returns a compress format of an IPv6
+#  2. ipv6_leading_zero_compression		- Returns a compress format of an IPv6 from leading 0s.
+#  3. ipv6_uncompress					- Returns an uncompressed format of an IPv6.
+#  4. ipv6_first_subnet_address			- Returns the first IPv6 address of a given IPv6 subnet.
+#  5. ipv6_last_subnet_address			- Returns the last IPv6 address of a given IPv6 subnet.
+#  6. ipv6_check						- Checks if the given string is a valid IPv6 address.
 #
-# All functions needs first argument to be a valid IPv6 and second argument optional which is the name of a global variable (not the variable like $VAR, just VAR) where to return the value.
+# All functions needs first argument to be a valid IPv6 and second argument optional which is the name of a global variable (not the variable like $VAR, just VAR) where to store the result.
 # In case the second argument is not given, will print the result to the stdout.
 #
-# echo_* functions can be override using ECHO_* variable to point to another function
+# All functions returns 0 in case the successful or 1 in case there is an error occured. A debug message to stderr will be displayed.
+# The error must be treated by the main script, like exit the script or do something else.
+#
+# _echo_* functions can be override using _ECHO_* variable to point to another function
+#
 
 if [[ -z "${_DEBUG_}" ]]; then
 	_DEBUG_=0
@@ -21,38 +28,38 @@ else
 	_DEBUG_=1
 fi
 
-if [[ -z "${ECHO_INFO}" ]]; then
-echo_info()
+if [[ -z "${_ECHO_INFO}" ]]; then
+_echo_info()
 {
-	echo "INFO: $@"
+	echo "INFO: $@" > /dev/stderr
 }
-ECHO_INFO=echo_info
+_ECHO_INFO=_echo_info
 fi
 
-if [[ -z "${ECHO_WARNING}" ]]; then
-echo_warning()
+if [[ -z "${_ECHO_WARNING}" ]]; then
+_echo_warning()
 {
-	echo "WARNING: $@"
+	echo "WARNING: $@" > /dev/stderr
 }
-ECHO_WARNING=echo_warning
+_ECHO_WARNING=_echo_warning
 fi
 
-if [[ -z "${ECHO_DEBUG}" ]]; then
-echo_debug()
+if [[ -z "${_ECHO_DEBUG}" ]]; then
+_echo_debug()
 {
 	if [[ ${_DEBUG_} -eq 1 ]]; then
 		echo "DEBUG: $@" > /dev/stderr
 	fi
 }
-ECHO_DEBUG=echo_debug
+_ECHO_DEBUG=_echo_debug
 fi
 
-if [[ -z "${ECHO_ERROR}" ]]; then
-echo_error()
+if [[ -z "${_ECHO_ERROR}" ]]; then
+_echo_error()
 {
 	echo "ERROR: $@" > /dev/stderr
 }
-ECHO_ERROR=echo_error
+_ECHO_ERROR=_echo_error
 fi
 
 ipv6_compression()
@@ -65,13 +72,11 @@ ipv6_compression()
 	#   $2 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
 	#
 	# Returns:
-	#   None.
-	#
-	# Exists:
-	#   1 in case there is an error in IPv6 format.
+	#   0 - in case the compression was successful
+	#   1 - in case there is an error in IPv6 format.
 	#
 	# Output:
-	#   In case argument $2 is missing, print the result to output.
+	#   In case argument $2 is missing, print the result to output. Can be captured into a variable.
 	#
 	# Compress rules for an IPv6:
 	# 1. That rule is also known as leading zero compression. You can remove the leading zeros (0s) in the 16 bits field of an IPv6 address. But each block in which you do that has at least one number remaining. If the field contains all zeros (0s), you must leave one zero (0) remaining. Removing leading zeros (0s) from the start does not have any effect on the value. However, you cannot apply that rule to trailing zeros (0s).
@@ -118,7 +123,7 @@ ipv6_compression()
 		break
 	fi
 
-	#${ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+	#${_ECHO_DEBUG} "IPv6 ${tmpIPv6}"
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<8; IDX++)); do
 
@@ -127,15 +132,15 @@ ipv6_compression()
 
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			${ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
-			exit 1
+			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			return 1
 		fi
 		IPv6_SUBBLOCK+=( $(printf "0x%x" "0x${SUBBLOCK}") )
 
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:((${SUBBLOCK_LEN}+1))}
-		#${ECHO_DEBUG} "IPv6: ${tmpIPv6}"
+		#${_ECHO_DEBUG} "IPv6: ${tmpIPv6}"
 
 		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
 		if [[ -z "$tmpIPv6" ]]; then
@@ -143,14 +148,14 @@ ipv6_compression()
 		fi
 	done
 
-	# Let's check if we have 8 sub-blocks. In case not, the string is not a valid IPv6.
+	# Let's check if we have 8 sub-blocks. In case nofirstt, the string is not a valid IPv6.
 	if [[ $IDX -lt 7 ]]; then
-		${ECHO_ERROR} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
-		${ECHO_ERROR} "provid only uncompressed IPv6 for this tool."
-		exit 1
+		${_ECHO_ERROR} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
+		${_ECHO_ERROR} "provid only uncompressed IPv6 for this tool."
+		return 1
 	fi
 
-	#${ECHO_DEBUG} "Total groups: ${!IPv6_SUBBLOCK[@]}"
+	#${_ECHO_DEBUG} "Total groups: ${!IPv6_SUBBLOCK[@]}"
 
 	# Count each continuous groups of 0s blocks. Store the start and end of this group in IPv6_CURRENT_GROUP_*
 	for IDX in ${!IPv6_SUBBLOCK[@]}; do
@@ -189,8 +194,8 @@ ipv6_compression()
 		fi
 	done
 
-	#${ECHO_DEBUG} "Longest 0s group is located between: ${IPv6_LONGEST_0s_GROUP[@]}"
-	#${ECHO_DEBUG} "Compute compressed IPv6.."
+	#${_ECHO_DEBUG} "Longest 0s group is located between: ${IPv6_LONGEST_0s_GROUP[@]}"
+	#${_ECHO_DEBUG} "Compute compressed IPv6.."
 
 	# Let's build the new format of IPv6 using IPv6_LONGEST_0s_START and IPv6_LONGEST_0s_END to compact the IPv6
 	IPv6=""
@@ -214,6 +219,8 @@ ipv6_compression()
 	else
 		eval ${2}="${IPv6}"
 	fi
+
+	return 0
 }
 
 ipv6_uncompress()
@@ -226,10 +233,8 @@ ipv6_uncompress()
 	#   $2 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
 	#
 	# Returns:
-	#   None.
-	#
-	# Exits:
-	#    1 - in case the IPv6 address is invalid.
+	#   0 - in case uncompress was successful.
+	#   1 - in case the IPv6 address is invalid.
 	#
 	# Output:
 	#   In case argument $2 is missing, print the result to output.
@@ -258,7 +263,7 @@ ipv6_uncompress()
 	OLD_IFS=${IFS}
 	IFS=$' \t\n'
 
-	#${ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+	#${_ECHO_DEBUG} "IPv6 ${tmpIPv6}"
 
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<40; IDX++)); do
@@ -274,7 +279,7 @@ ipv6_uncompress()
 			if [[ ${IPv6_COMPRESS_SUBBLOCK} -gt 1 ]]; then
 				{ECHO_ERROR} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
 				IFS=${OLD_IFS}
-				exit 1
+				return 1
 			fi
 			# strip this :: delimiter and continue with the search
 			tmpIPv6=${tmpIPv6:2}
@@ -291,9 +296,9 @@ ipv6_uncompress()
 		SUBBLOCK_LEN=${#SUBBLOCK}
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			${ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
 			IFS=${OLD_IFS}
-			exit 1
+			return 1
 		fi
 
 		if [[ ${IPv6_COMPRESS_SUBBLOCK} -eq 0 ]]; then
@@ -304,7 +309,7 @@ ipv6_uncompress()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
 
 	done
 
@@ -313,30 +318,30 @@ ipv6_uncompress()
 	# Post-checks:
 	# More that 8 sub-blocks is an invalid IPv6 format
 	if [[ ${IPv6_TOTAL_SUBBLOCKS} -gt 8 ]]; then
-		${ECHO_ERROR} "provided string ${IPv6} has more than 8 sub-blocks! This is an invalid IPv6 format! Please check the IPv6 format!"
+		${_ECHO_ERROR} "provided string ${IPv6} has more than 8 sub-blocks! This is an invalid IPv6 format! Please check the IPv6 format!"
 		# Restore previous IFS
 		IFS=${OLD_IFS}
-		exit 1
+		return 1
 	fi
 	# 8 sub-blocks with compression is an invalid IPv6 format
 	if [[ ${IPv6_COMPRESS_SUBBLOCK} -ne 0 && ${IPv6_TOTAL_SUBBLOCKS} -eq 8 ]]; then
-		${ECHO_ERROR} "provided string ${IPv6} 8 sub-blocks and compression! This is an invalid IPv6 format! Please check the IPv6 format!"
+		${_ECHO_ERROR} "provided string ${IPv6} 8 sub-blocks and compression! This is an invalid IPv6 format! Please check the IPv6 format!"
 		# Restore previous IFS
 		IFS=${OLD_IFS}
-		exit 1
+		return 1
 	fi
 	# Less than 8 sub-blocks without compression is an invalid IPv6 format.
 	if [[ ! ${IPv6_COMPRESS_SUBBLOCK} && ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
-		${ECHO_ERROR} "provided string ${IPv6} has less than 8 sub-blocks without compression! This is an invalid IPv6 format! Please check the IPv6 format!"
+		${_ECHO_ERROR} "provided string ${IPv6} has less than 8 sub-blocks without compression! This is an invalid IPv6 format! Please check the IPv6 format!"
 		# Restore previous IFS
 		IFS=${OLD_IFS}
-		exit 1
+		return 1
 	fi
 
 	if [[ ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
 		# Walk through the IPv6 and check where is the compression.
 		((IPv6_ADD_0s=8-${IPv6_TOTAL_SUBBLOCKS}))
-		#${ECHO_DEBUG} "We must add ${IPv6_ADD_0s} more of groups of 0s."
+		#${_ECHO_DEBUG} "We must add ${IPv6_ADD_0s} more of groups of 0s."
 
 		# Build first part of the IPv6
 		IPv6=""
@@ -367,6 +372,8 @@ ipv6_uncompress()
 
 	# Restore previous IFS
 	IFS=${OLD_IFS}
+
+	return 0
 }
 
 ipv6_leading_zero_compression()
@@ -379,9 +386,7 @@ ipv6_leading_zero_compression()
 	#   $2 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
 	#
 	# Returns:
-	#   None.
-	#
-	# Exits:
+	#    0 - in case leading zero compression was successful.
 	#    1 - in case the IPv6 address is invalid.
 	#
 	# Output:
@@ -419,7 +424,7 @@ ipv6_leading_zero_compression()
 				{ECHO_ERROR} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
 				# Restore previous IFS
 				IFS=${OLD_IFS}
-				exit 1
+				return 1
 			fi
 			# strip this :: delimiter and continue with the search
 			tmpIPv6=${tmpIPv6:2}
@@ -436,10 +441,10 @@ ipv6_leading_zero_compression()
 		SUBBLOCK_LEN=${#SUBBLOCK}
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			${ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
 			# Restore previous IFS
 			IFS=${OLD_IFS}
-			exit 1
+			return 1
 		fi
 
 		if [[ ${IPv6_COMPRESS_SUBBLOCK} -eq 0 ]]; then
@@ -450,7 +455,7 @@ ipv6_leading_zero_compression()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
 
 	done
 
@@ -476,6 +481,8 @@ ipv6_leading_zero_compression()
 	else
 		eval ${2}="${IPv6}"
 	fi
+
+	return 0
 }
 
 ipv6_first_subnet_address()
@@ -539,17 +546,17 @@ ipv6_first_subnet_address()
 	fi
 
 	if [[ ! "${IPv6_PREFIX}" =~ ^[0-9]+$ ]]; then
-		${ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Please correct the IPv6 string!"
+		${_ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Please correct the IPv6 string!"
 		# Restore previous IFS
 		IFS=${OLD_IFS}
-		exit 1
+		return 1
 	fi
 
 	if [[ ${IPv6_PREFIX} -lt 1 || ${IPv6_PREFIX} -gt 128 ]]; then
-		${ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Prefix must be between 1 and 128! Please correct the IPv6 string!"
+		${_ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Prefix must be between 1 and 128! Please correct the IPv6 string!"
 		# Restore previous IFS
 		IFS=${OLD_IFS}
-		exit 1
+		return 1
 	fi
 
 	local IPv6_SUBBLOCKS=( )
@@ -587,6 +594,8 @@ ipv6_first_subnet_address()
 
 	# Restore previous IFS
 	IFS=${OLD_IFS}
+
+	return 0
 }
 
 ipv6_last_subnet_address()
@@ -627,7 +636,8 @@ ipv6_check()
 	#   $1 - IPv6 to be checked
 	#
 	# Returns:
-	#   0 if is a valid IPv6 or 1 if is not a valid IPv6.
+	#   0 - if is a valid IPv6
+	#   1 - if is not a valid IPv6.
 	#
 
 	local IDX
@@ -689,7 +699,7 @@ ipv6_check()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
 
 		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
 	done
