@@ -1,12 +1,12 @@
-# IPv6-BASH-Tools
-IPv6 tools for check, compress, uncompress and remove leading 0s in IPv6 using only Bash commands.
+# IPv6-BASH-Tools and IPv6-DASH-Tools
+IPv6 tools for check, compress, uncompress and remove leading 0s in IPv6 using only Bash or Dash commands.
 
-This tool is intended to be use in BASH scripts for routers to calculate for exampe SIT6 tunnel addresses.
+This tool is intended to be use in BASH or Dash scripts for routers to calculate for exampe SIT6 tunnel addresses.
 
 I've tried to use simple approach using simple IPv6 rules.
 
 # Short story
-This library I've created because I couldn't find anything written for BASH. Each time I had to write a BASH script to work with IPv6 I've faced issues to work with it.
+This library I've created because I couldn't find anything written for BASH or DASH. Each time I had to write a BASH and DASH script to work with IPv6 I've faced issues to work with it.
 
 ## ipv6_compression()
 Compress IPv6 using these rules to compress:
