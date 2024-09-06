@@ -133,6 +133,8 @@ ipv6_compression()
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
 			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
 			return 1
 		fi
 		IPv6_SUBBLOCK+=( $(printf "0x%x" "0x${SUBBLOCK}") )
@@ -152,6 +154,8 @@ ipv6_compression()
 	if [[ $IDX -lt 7 ]]; then
 		${_ECHO_ERROR} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
 		${_ECHO_ERROR} "provid only uncompressed IPv6 for this tool."
+		# Restore previous IFS
+		IFS=${OLD_IFS}
 		return 1
 	fi
 
@@ -220,6 +224,9 @@ ipv6_compression()
 		eval ${2}="${IPv6}"
 	fi
 
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+
 	return 0
 }
 
@@ -278,6 +285,7 @@ ipv6_uncompress()
 			((IPv6_COMPRESS_SUBBLOCK++))
 			if [[ ${IPv6_COMPRESS_SUBBLOCK} -gt 1 ]]; then
 				{ECHO_ERROR} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
+				# Restore previous IFS
 				IFS=${OLD_IFS}
 				return 1
 			fi
@@ -297,6 +305,7 @@ ipv6_uncompress()
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
 			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
 			IFS=${OLD_IFS}
 			return 1
 		fi
@@ -481,6 +490,9 @@ ipv6_leading_zero_compression()
 	else
 		eval ${2}="${IPv6}"
 	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
 
 	return 0
 }
