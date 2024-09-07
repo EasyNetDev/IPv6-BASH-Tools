@@ -1,0 +1,510 @@
+#!/bin/sh
+
+# DASH Tools to manipulate IPv6 addresses. This version is using non ARRAY workaround to be more portable over the systems
+# DHClient is using by default /bin/sh which in Debian for example is using DASH. Trying to use the BASH version will
+# DASH commands needes by this script:
+#  1. DASH or similar shell interpreter
+#  2. printf builtin of from coreutils
+#  3. sed from coreutils
+#  4.
+#
+# Avaiable functions:
+#  1. ipv6_compression					- Returns a compress format of an IPv6
+#  2. ipv6_leading_zero_compression		- Returns a compress format of an IPv6 from leading 0s.
+#  3. ipv6_uncompress					- Returns an uncompressed format of an IPv6.
+#  4. ipv6_first_subnet_address			- Returns the first IPv6 address of a given IPv6 subnet.
+#  5. ipv6_last_subnet_address			- Returns the last IPv6 address of a given IPv6 subnet.
+#  6. ipv6_check						- Checks if the given string is a valid IPv6 address.
+#
+# All functions needs first argument to be a valid IPv6 and second argument optional which is the name of a global variable (not the variable like $VAR, just VAR) where to store the result.
+# In case the second argument is not given, will print the result to the stdout.
+#
+# All functions returns 0 in case the successful or 1 in case there is an error occured. A debug message to stderr will be displayed.
+# The error must be treated by the main script, like exit the script or do something else.
+#
+# _echo_* functions can be override using _ECHO_* variable to point to another function
+#
+# Dash has an issue using IFS=$' \t\n', like BASH. Even I'm unset IFS, I'm still geting errors in my functions.
+# To fix it we have to use:
+#IFS=" \t
+#"
+#
+# And in this way is setting <space><tab><newline> correctly.
+
+if [ -z "${_DEBUG_}" ]; then
+	_DEBUG_=0
+else
+	if [ "${_DEBUG_}" = "2" ]; then
+		# Enable DASH script debugging
+		set -x
+	fi
+	_DEBUG_=1
+fi
+
+if [ -z "${_ECHO_INFO}" ]; then
+_echo_info()
+{
+	echo "INFO: $@" > /dev/stderr
+}
+_ECHO_INFO=_echo_info
+fi
+
+if [ -z "${_ECHO_WARNING}" ]; then
+_echo_warning()
+{
+	echo "WARNING: $@" > /dev/stderr
+}
+_ECHO_WARNING=_echo_warning
+fi
+
+if [ -z "${_ECHO_DEBUG}" ]; then
+_echo_debug()
+{
+	if [ ${_DEBUG_} -eq 1 ]; then
+		echo "DEBUG: $@" > /dev/stderr
+	fi
+}
+_ECHO_DEBUG=_echo_debug
+fi
+
+if [ -z "${_ECHO_ERROR}" ]; then
+_echo_error()
+{
+	echo "ERROR: $@" > /dev/stderr
+}
+_ECHO_ERROR=_echo_error
+fi
+
+__set_IFS_default() {
+	IFS=" \t
+"
+}
+
+__get_number_of_el_in_list()
+{
+	# To simulate an array like, we will use this function to walk through a list space-separated and return total number of elements.
+	# Arguments:
+	#   $1 - Name of the variable (can be local in a function or global) that contains the list. Use only just "VAR", not "$VAR"
+	#
+	# Optional Arguments:
+	#   $2 - Name of variable (can be local in a function or global) where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#   0 - in case the was successful
+	#   1 - in case there is an error.
+	#
+	# Outputs:
+	# If $2 is defined, then the total number of elements will be store in this variable, otherwise to the standard output.
+	#
+
+	local __LIST_NAME_1__="$1"
+	local __LIST_1__=""
+	local __VAL__=""
+	local __RETURN_VAR__="$2"
+	local __IDX__
+	local OLD_IFS
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	unset IFS
+	IFS=" \t
+"
+
+	if [ -z "${__LIST_NAME_1__}" ]; then
+		return 1
+	fi
+
+	eval __LIST_1__=\$${__LIST_NAME_1__}
+
+	${_ECHO_DEBUG} "__get_number_of_el_in_list(): List name is ${__LIST_NAME_1__}"
+	${_ECHO_DEBUG} "__get_number_of_el_in_list(): My list ${__LIST_NAME_1__} has: ${__LIST_1__}"
+
+	__IDX__=0
+	for VAL in ${__LIST_1__}; do
+		#echo "${VAL} ${IDX}"
+		__IDX__=$((__IDX__+=1))
+	done
+
+	if [ -n "${__RETURN_VAR__}" ]; then
+		eval ${__RETURN_VAR__}=\${__IDX__}
+	else
+		echo ${__IDX__}
+	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+
+	return 0
+}
+
+__get_value_from_list_by_index()
+{
+	# To simulate an array like, we will use this function to walk through a list space-separated and return the value of the specific index.
+	# Arguments:
+	#   $1 - Name of the variable (can be local in a function or global) that contains the list. Use only just "VAR", not "$VAR"
+	#   $2 - Index of which element we want to return. Starting from 0.
+	#
+	# Optional Arguments:
+	#   $3 - Name of variable (can be local in a function or global) where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#   0 - in case the compression was successful
+	#   1 - in case there is no match for the index given
+	#
+
+	# Keep __LIST_2 different from __LIST_1, Seems that is not working to use the same local variable in both functions.
+	local __LIST_NAME_2__="$1"
+	local __LIST_2__=""
+	local __VAL__=""
+	local __IDX_SEARCH__="$2"
+	local __RETURN_VAR__="$3"
+	local __RESULT__
+
+	local __TOTAL_EL__
+
+	local __IDX__
+
+	local OLD_IFS
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	# This is working here as expected ..
+	unset IFS
+	__set_IFS_default
+
+	if [ -z "${__LIST_NAME_2__}" ]; then
+		${_ECHO_ERROR} "Argument 1 is empty!"
+		return 1
+	fi
+
+	# Check if $2 is integer
+	__RESULT__=$(echo ${__IDX_SEARCH__} | sed "s/[0-9]\+//")
+
+	if [ -n "${__RESULT__}" ]; then
+		${_ECHO_ERROR} "Argument 2 is not an integer!"
+		return 1
+	fi
+
+	eval __LIST_2__=\$${__LIST_NAME_2__}
+
+	__get_number_of_el_in_list "__LIST_2__" "__TOTAL_EL__"
+	${_ECHO_DEBUG} "__get_value_from_list_by_index(): Search index is: ${__IDX_SEARCH__}"
+	${_ECHO_DEBUG} "__get_value_from_list_by_index(): My list ${__LIST_NAME_2__} has: ${__LIST_2__}"
+	${_ECHO_DEBUG} "__get_value_from_list_by_index(): Total Elements in __LIST_2__: ${__TOTAL_EL__}"
+
+	__IDX__=0
+	for __VAL__ in ${__LIST_2__}; do
+		${_ECHO_DEBUG} "${__VAL__}"
+		${_ECHO_DEBUG} "__get_value_from_list_by_index(): __IDX__=${__IDX__}"
+		if [ ${__IDX__} -eq ${__IDX_SEARCH__} ]; then
+			break
+		fi
+		__IDX__=$((__IDX__+=1))
+		${_ECHO_DEBUG} "__get_value_from_list_by_index(): __IDX__=${__IDX__}"
+	done
+
+	${_ECHO_DEBUG} "__get_value_from_list_by_index(): ${__TOTAL_EL__} vs ${__IDX__}"
+
+	if [ ${__IDX__} -eq ${__TOTAL_EL__} ]; then
+		return 1
+	fi
+
+	if [ -n "${__RETURN_VAR__}" ]; then
+		eval ${__RETURN_VAR__}=\${__VAL__}
+	else
+		echo ${__VAL__}
+	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+
+	return 0
+}
+
+__add_el_to_list()
+{
+	# To simulate an array like, we will use this function to walk through a list space-separated and return the value of the specific index.
+	# Arguments:
+	#   $1 - Name of the variable (can be local in a function or global) that contains the list. Use only just "VAR", not "$VAR"
+	#   $2 - New element to be added, without SPACES!
+	#
+	# Returns:
+	#   0 - in case of successful
+	#   1 - in case there was an error
+	#
+
+	# Keep __LIST_X different from other functions, Seems that is not working to use the same local variable in both functions.
+	local __LIST_NAME_3__="$1"
+	local __LIST_3__=""
+
+	local OLD_IFS
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	unset IFS
+	# This is working here as expected ..
+	__set_IFS_default
+
+	if [ -z "${__LIST_NAME_3__}" ]; then
+		${_ECHO_ERROR} "Argument 1 is empty!"
+		return 1
+	fi
+
+	if [ -z "${2}" ]; then
+		${_ECHO_ERROR} "Argument 2 is empty!"
+		return 1
+	fi
+
+	eval __LIST_3__=\$${__LIST_NAME_3__}
+
+	if [ -z "${__LIST_3__}" ]; then
+		__LIST_3__="${2}"
+	else
+		__LIST_3__="${__LIST_3__} ${2}"
+	fi
+
+	eval ${__LIST_NAME_3__}=\${__LIST_3__}
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+
+}
+
+ipv6_compression()
+{
+	# Compress IPv6 address.
+	# Argumets:
+	#   $1 - IPv6 address
+	#
+	# Optional Arguments:
+	#   $2 - Name of variable where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#   0 - in case the compression was successful
+	#   1 - in case there is an error in IPv6 format.
+	#
+	# Output:
+	#   In case argument $2 is missing, print the result to output. Can be captured into a variable.
+	#
+	# Compress rules for an IPv6:
+	# 1. That rule is also known as leading zero compression. You can remove the leading zeros (0s) in the 16 bits field of an IPv6 address. But each block in which you do that has at least one number remaining. If the field contains all zeros (0s), you must leave one zero (0) remaining. Removing leading zeros (0s) from the start does not have any effect on the value. However, you cannot apply that rule to trailing zeros (0s).
+	# 2. That rule is also called the zero compression rule. According to that rule, if an IPv6 address contains continuous zeros, then they are replaced with (::), but only the longest continuous group of 0s!
+	# Example : 1050:0000:0000:0000:0005:0000:0000:326b will be 1050:0:0:0:5:0:0:326b and in the end will be 1050::5:0:0:326b. Second group of 0s can't be compressed, becasue first group has 3 continuous 0s and the second one has only 2.
+	# In case of tie, first one will be compressed.
+	# 3. If zeros (0s) are present in a discontinuous pattern in IPv6 address, then at only one joining, the zeros (0s) are replaced with (::).
+
+	local __IPv6__="$1"
+
+	local __IDX__
+	local OLD_IFS
+	local __VALUE__
+
+	local __IPv6_SUBBLOCKS__=""
+	local __IPv6_TOTAL_SUBBLOCKS__=""
+
+	local __IPv6_FIRST_0s__=0
+
+	# Vars to save start and stop of the longes 0s groups
+	local IPv6_LONGEST_0s_START=0
+	local IPv6_LONGEST_0s_END=0
+
+	# Vars to save start and stop of the current group
+	local IPv6_CURRENT_GROUP_START=0
+	local IPv6_CURRENT_GROUP_END=0
+
+	local __SUBBLOCK__
+	local __SUBBLOCK_LEN__
+	local __SUBBLOCK_START__=0
+	local __TOTAL_SUBBLOCKS__=0
+	local tmpIPv6="${__IPv6__}"
+
+	local __RESULT__
+	local __COMPRESSION__
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	unset IFS
+	__set_IFS_default
+
+	# Using substrigs. Could be much faster and less complex.
+	# In case we see ::, the address is already compressed. Just return it
+	__COMPRESSION__=${__IPv6__%%::}
+
+	if [ "${__IPv6__}" != "${__COMPRESSION__}" ]; then
+		# Compression detected. Return the same IPv6
+		${_ECHO_DEBUG} "Compression detected: ${__IPv6__} vs ${__COMPRESSION__}"
+		if [ -z "$2" ]; then
+			echo "${__IPv6__}"
+		else
+			eval ${2}="${__IPv6__}"
+		fi
+		break
+	fi
+
+	# Change delimiter :  to
+	#tmpIPv6=$(echo ${__IPv6__} | sed "s/:/ /g")
+
+
+	${_ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+#	# Loop until we don't have any sub-blocks. We should loop maximum 7 or 8 times. Otherwise if we still characters in tmpIPv6, then there is something wrong with the IPv6 format!
+
+	IFS=":"
+	for __VALUE__ in ${tmpIPv6}; do
+
+		#__SUBBLOCK__=${tmpIPv6%%:*}
+		__SUBBLOCK_LEN__=${#__VALUE__}
+
+		# Check if $2 is integer
+		__RESULT__=$(echo ${__VALUE__} | sed "s/[0-9a-fA-F]\+//")
+
+		${_ECHO_DEBUG} "Subblock: "${__VALUE__}
+		${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
+		#${_ECHO_DEBUG} "Index: ${__IDX__}"
+		#${_ECHO_DEBUG} "Remaing of tmpIPv6: ${tmpIPv6}"
+
+		# Check if the sub-block contains only HEX characters
+		if [ -n "${__RESULT__}" ]; then
+			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		if [ ${__SUBBLOCK_LEN__} -gt 4 ]; then
+			${_ECHO_ERROR} "provided string ${IPv6} contains subblocks with values greater than 0xFFFF, which is an invalid IPv6 format!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+
+		if ! __add_el_to_list "__IPv6_SUBBLOCKS__" $(printf "0x%x" "0x${__VALUE__}"); then
+			${_ECHO_ERROR} "Couldn't add element ${__VALUE__} to the list __IPv6_SUBBLOCKS__"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+#		# Strip the sub-block in front of the IPv6
+#		tmpIPv6=${tmpIPv6#*:}
+#		#${_ECHO_DEBUG} "IPv6: ${tmpIPv6}"
+#
+#		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
+		# Stop if we don't have any characters in tmpIPv6
+#		if [ -z "${tmpIPv6}" ]; then
+#			break
+#		fi
+	done
+
+	__set_IFS_default
+
+#	if [ -n "${tmpIPv6}" ]; then
+#		${_ECHO_WARNING} "Seems that after parsing the ${__IPv6__} a remaining string ${tmpIPv6} was left. It is a correct IPv6 format?"
+#	fi
+
+	__get_number_of_el_in_list "__IPv6_SUBBLOCKS__" "__TOTAL_SUBBLOCKS__"
+
+	${_ECHO_DEBUG} "__IPv6_SUBBLOCKS__: ${__IPv6_SUBBLOCKS__}"
+	${_ECHO_DEBUG} "__TOTAL_SUBBLOCKS__: ${__TOTAL_SUBBLOCKS__}"
+
+	# Let's check if we have 8 sub-blocks. In case not, then the string is not a valid IPv6.
+	if [ ${__TOTAL_SUBBLOCKS__} -lt 7 ]; then
+		${_ECHO_ERROR} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
+		${_ECHO_ERROR} "provid only uncompressed IPv6 for this tool."
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+#	#${_ECHO_DEBUG} "Total groups: ${!IPv6_SUBBLOCKs[@]}"
+#	__get_number_of_el_in_list "__IPv6_SUBBLOCKS__" "__IPv6_TOTAL_SUBBLOCKS__"
+#	${_ECHO_DEBUG} "__IPv6_TOTAL_SUBBLOCKS__ ${__IPv6_TOTAL_SUBBLOCKS__}"
+
+	__IPv6_FIRST_0s__=0
+	__IDX__=0
+	# Count each continuous groups of 0s blocks. Store the start and end of this group in IPv6_CURRENT_GROUP_*
+	for __SUBBLOCK__ in ${__IPv6_SUBBLOCKS__}; do
+		# Check if IPv6_SUBBLOCK[${IDX}] is 0x0
+		#__SUBBLOCK__=""
+
+		#echo ${__IDX__}
+		#if ! __get_value_from_list_by_index "__IPv6_SUBBLOCKS__" ${__IDX__} "__SUBBLOCK__"; then
+		#	${_ECHO_DEBUG} "Error occured for __get_value_from_list_by_index()"
+		#	return 1
+		#fi
+
+		${_ECHO_DEBUG} "My sublock is: ${__SUBBLOCK__}"
+
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}"
+		if [[ ${__RESULT__} == 0x0 ]]; then
+			:
+			# Start count how many continuous 0s sub-blocks we have
+			# Is this the first 0 in the group? If yes, mark it in __IPv6_FIRST_0s__ and set the start group with IDX
+			if [[ ${__IPv6_FIRST_0s__} -eq 0 ]]; then
+				__IPv6_FIRST_0s__=1
+				IPv6_CURRENT_GROUP_START=${IDX}
+			else
+#				# If we already have a start of continuous 0s sub-blocks (marked in __IPv6_FIRST_0s__), update the current end with IDX.
+#				IPv6_CURRENT_GROUP_END=${IDX}
+#			fi
+#
+#			# In case the IPv6 is ending in 0, we have to check this and add to calculation.
+#			if [[ ${IDX} -eq $((${#IPv6_SUBBLOCK[@]}-1)) ]]; then
+#				if [[ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]]; then
+#					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
+#					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
+#					IPv6_LONGEST_0s_END=${IPv6_CURRENT_GROUP_END}
+#				fi
+#			fi
+		else
+			:
+#			# If IPv6_SUBBLOCK[${IDX}] is not 0x0, then reset __IPv6_FIRST_0s__ and check if the current number of continuous 0s sub-blocks is the longest one.
+#			if [[ ${__IPv6_FIRST_0s__} -eq 1 ]]; then
+#				# Reset FIRST 0 found
+#				__IPv6_FIRST_0s__=0
+#				# The new group of 0s is greater than previous one?
+#				if [[ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]]; then
+#					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
+#					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
+#					IPv6_LONGEST_0s_END=${IPv6_CURRENT_GROUP_END}
+#				fi
+#			fi
+		fi
+		__IDX__=$((__IDX__+=1))
+	done
+
+	#${_ECHO_DEBUG} "Longest 0s group is located between: ${IPv6_LONGEST_0s_GROUP[@]}"
+	#${_ECHO_DEBUG} "Compute compressed IPv6.."
+
+	# Let's build the new format of IPv6 using IPv6_LONGEST_0s_START and IPv6_LONGEST_0s_END to compact the IPv6
+#	IPv6=""
+#	for IDX in ${!IPv6_SUBBLOCK[@]}; do
+#		if [[ ${IDX} -ge ${IPv6_LONGEST_0s_START} && ${IDX} -le ${IPv6_LONGEST_0s_END} ]]; then
+#			if [[ ${IDX} -eq ${IPv6_LONGEST_0s_START} ]]; then
+#				IPv6+="::"
+#			fi
+#			continue
+#		fi
+#		# Don't add delimier in first sub-block or just after the "::"
+#		if [[ ${IDX} -eq 0 || ${IDX} -eq $((${IPv6_LONGEST_0s_END}+1)) ]]; then
+#			IPv6+=$(printf "%x" ${IPv6_SUBBLOCK[${IDX}]})
+#		else
+#			IPv6+=$(printf ":%x" ${IPv6_SUBBLOCK[${IDX}]})
+#		fi
+#	done
+
+	if [ -z "$2" ]; then
+		echo "${__IPv6__}"
+	else
+		eval ${2}="${__IPv6__}"
+	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+
+	return 0
+}
+
