@@ -439,20 +439,20 @@ ipv6_compression()
 		${_ECHO_DEBUG} "My sublock is: ${__SUBBLOCK__}"
 
 		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}"
-		if [[ ${__RESULT__} == 0x0 ]]; then
+		if [ ${__RESULT__} == 0x0 ]; then
 			:
 			# Start count how many continuous 0s sub-blocks we have
 			# Is this the first 0 in the group? If yes, mark it in __IPv6_FIRST_0s__ and set the start group with IDX
-			if [[ ${__IPv6_FIRST_0s__} -eq 0 ]]; then
+			if [ ${__IPv6_FIRST_0s__} -eq 0 ]; then
 				__IPv6_FIRST_0s__=1
 				IPv6_CURRENT_GROUP_START=${IDX}
 			else
-#				# If we already have a start of continuous 0s sub-blocks (marked in __IPv6_FIRST_0s__), update the current end with IDX.
-#				IPv6_CURRENT_GROUP_END=${IDX}
-#			fi
-#
-#			# In case the IPv6 is ending in 0, we have to check this and add to calculation.
-#			if [[ ${IDX} -eq $((${#IPv6_SUBBLOCK[@]}-1)) ]]; then
+				# If we already have a start of continuous 0s sub-blocks (marked in __IPv6_FIRST_0s__), update the current end with IDX.
+				IPv6_CURRENT_GROUP_END=${IDX}
+			fi
+
+			# In case the IPv6 is ending in 0, we have to check this and add to calculation.
+#			if [ ${IDX} -eq $((${#IPv6_SUBBLOCK[@]}-1)) ]; then
 #				if [[ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]]; then
 #					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
 #					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
