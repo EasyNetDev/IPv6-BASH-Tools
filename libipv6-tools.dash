@@ -442,17 +442,17 @@ ipv6_compression()
 		if [ ${__RESULT__} == 0x0 ]; then
 			:
 			# Start count how many continuous 0s sub-blocks we have
-			# Is this the first 0 in the group? If yes, mark it in __IPv6_FIRST_0s__ and set the start group with IDX
+			# Is this the first 0 in the group? If yes, mark it in __IPv6_FIRST_0s__ and set the start group with __IDX__
 			if [ ${__IPv6_FIRST_0s__} -eq 0 ]; then
 				__IPv6_FIRST_0s__=1
-				IPv6_CURRENT_GROUP_START=${IDX}
+				IPv6_CURRENT_GROUP_START=${__IDX__}
 			else
-				# If we already have a start of continuous 0s sub-blocks (marked in __IPv6_FIRST_0s__), update the current end with IDX.
-				IPv6_CURRENT_GROUP_END=${IDX}
+				# If we already have a start of continuous 0s sub-blocks (marked in __IPv6_FIRST_0s__), update the current end with __IDX__.
+				IPv6_CURRENT_GROUP_END=${__IDX__}
 			fi
 
 			# In case the IPv6 is ending in 0, we have to check this and add to calculation.
-#			if [ ${IDX} -eq $((${#IPv6_SUBBLOCK[@]}-1)) ]; then
+#			if [ ${__IDX__} -eq $((${#IPv6_SUBBLOCK[@]}-1)) ]; then
 #				if [[ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]]; then
 #					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
 #					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
@@ -461,7 +461,7 @@ ipv6_compression()
 #			fi
 		else
 			:
-#			# If IPv6_SUBBLOCK[${IDX}] is not 0x0, then reset __IPv6_FIRST_0s__ and check if the current number of continuous 0s sub-blocks is the longest one.
+#			# If IPv6_SUBBLOCK[${__IDX__}] is not 0x0, then reset __IPv6_FIRST_0s__ and check if the current number of continuous 0s sub-blocks is the longest one.
 #			if [[ ${__IPv6_FIRST_0s__} -eq 1 ]]; then
 #				# Reset FIRST 0 found
 #				__IPv6_FIRST_0s__=0
