@@ -65,14 +65,14 @@ fi
 
 echo
 echo "3. IPv6 compress tool:"
-IPv6_TEST="1abc:2abc:0000:0000:0000:0000:0000:aaaa"
-#for IPv6_TEST in "0000:0000:0000:0000:0000:0000:0000:0000" "1abc:2abc:0000:0000:0000:0000:0000:0000" "1abc:0000:0000:0000:0000:2abc:0000:0000" "1abc:0000:0000:0000:2abc:0000:0000:0000" "1abc:0000:0000:2abc:0000:0000:0000:0000"; do
+#IPv6_TEST="1abc:2abc:0000:0000:0000:0000:0000:aaaa"
+for IPv6_TEST in "0000:0000:0000:0000:0000:0000:0000:0000" "1abc:2abc:0000:0000:0000:0000:0000:0000" "1abc:0000:0000:0000:0000:2abc:0000:0000" "1abc:0000:0000:0000:2abc:0000:0000:0000" "1abc:0000:0000:2abc:0000:0000:0000:0000"; do
 	if ! ipv6_compression "${IPv6_TEST}" "IPv6_TUN_6RD_COMPRESS"; then
 		echo "  ipv6_compression for ${IPv6_TEST} failed."
 	else
 		echo "  Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_COMPRESS}"
 	fi
-#done
+done
 exit 0
 
 #echo

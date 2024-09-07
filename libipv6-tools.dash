@@ -76,6 +76,7 @@ _ECHO_ERROR=_echo_error
 fi
 
 __set_IFS_default() {
+	unset IFS
 	IFS=" \t
 "
 }
@@ -107,8 +108,7 @@ __get_number_of_el_in_list()
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
 	OLD_IFS=${IFS}
 	unset IFS
-	IFS=" \t
-"
+	__set_IFS_default
 
 	if [ -z "${__LIST_NAME_1__}" ]; then
 		return 1
@@ -116,12 +116,8 @@ __get_number_of_el_in_list()
 
 	eval __LIST_1__=\$${__LIST_NAME_1__}
 
-	${_ECHO_DEBUG} "__get_number_of_el_in_list(): List name is ${__LIST_NAME_1__}"
-	${_ECHO_DEBUG} "__get_number_of_el_in_list(): My list ${__LIST_NAME_1__} has: ${__LIST_1__}"
-
 	__IDX__=0
 	for VAL in ${__LIST_1__}; do
-		#echo "${VAL} ${IDX}"
 		__IDX__=$((__IDX__+=1))
 	done
 
@@ -188,22 +184,19 @@ __get_value_from_list_by_index()
 	eval __LIST_2__=\$${__LIST_NAME_2__}
 
 	__get_number_of_el_in_list "__LIST_2__" "__TOTAL_EL__"
-	${_ECHO_DEBUG} "__get_value_from_list_by_index(): Search index is: ${__IDX_SEARCH__}"
-	${_ECHO_DEBUG} "__get_value_from_list_by_index(): My list ${__LIST_NAME_2__} has: ${__LIST_2__}"
-	${_ECHO_DEBUG} "__get_value_from_list_by_index(): Total Elements in __LIST_2__: ${__TOTAL_EL__}"
 
 	__IDX__=0
 	for __VAL__ in ${__LIST_2__}; do
-		${_ECHO_DEBUG} "${__VAL__}"
-		${_ECHO_DEBUG} "__get_value_from_list_by_index(): __IDX__=${__IDX__}"
+#		${_ECHO_DEBUG} "Current sub-block: ${__VAL__}"
+#		${_ECHO_DEBUG} "__get_value_from_list_by_index(): __IDX__=${__IDX__}"
 		if [ ${__IDX__} -eq ${__IDX_SEARCH__} ]; then
 			break
 		fi
 		__IDX__=$((__IDX__+=1))
-		${_ECHO_DEBUG} "__get_value_from_list_by_index(): __IDX__=${__IDX__}"
+#		${_ECHO_DEBUG} "__get_value_from_list_by_index(): __IDX__=${__IDX__}"
 	done
 
-	${_ECHO_DEBUG} "__get_value_from_list_by_index(): ${__TOTAL_EL__} vs ${__IDX__}"
+#	${_ECHO_DEBUG} "__get_value_from_list_by_index(): ${__TOTAL_EL__} vs ${__IDX__}"
 
 	if [ ${__IDX__} -eq ${__TOTAL_EL__} ]; then
 		return 1
@@ -242,7 +235,6 @@ __add_el_to_list()
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
 	OLD_IFS=${IFS}
 	unset IFS
-	# This is working here as expected ..
 	__set_IFS_default
 
 	if [ -z "${__LIST_NAME_3__}" ]; then
@@ -323,7 +315,6 @@ ipv6_compression()
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
 	OLD_IFS=${IFS}
-	unset IFS
 	__set_IFS_default
 
 	# Using substrigs. Could be much faster and less complex.
@@ -332,7 +323,7 @@ ipv6_compression()
 
 	if [ "${__IPv6__}" != "${__COMPRESSION__}" ]; then
 		# Compression detected. Return the same IPv6
-		${_ECHO_DEBUG} "Compression detected: ${__IPv6__} vs ${__COMPRESSION__}"
+#		${_ECHO_DEBUG} "Compression detected: ${__IPv6__} vs ${__COMPRESSION__}"
 		if [ -z "$2" ]; then
 			echo "${__IPv6__}"
 		else
@@ -341,26 +332,19 @@ ipv6_compression()
 		break
 	fi
 
-	# Change delimiter :  to
-	#tmpIPv6=$(echo ${__IPv6__} | sed "s/:/ /g")
+	# Loop until we don't have any sub-blocks. We will loop through the string by splitting it by ":" delimiter. If we have less than 8 or more sub-groups in __IPv6__, then there is something wrong with the IPv6 format!
 
-
-	${_ECHO_DEBUG} "IPv6 ${tmpIPv6}"
-#	# Loop until we don't have any sub-blocks. We should loop maximum 7 or 8 times. Otherwise if we still characters in tmpIPv6, then there is something wrong with the IPv6 format!
-
+	# Change IFS delimier to ":"
 	IFS=":"
-	for __VALUE__ in ${tmpIPv6}; do
+	for __VALUE__ in ${__IPv6__}; do
 
-		#__SUBBLOCK__=${tmpIPv6%%:*}
 		__SUBBLOCK_LEN__=${#__VALUE__}
 
-		# Check if $2 is integer
+		# Check if the sub-group is hexa
 		__RESULT__=$(echo ${__VALUE__} | sed "s/[0-9a-fA-F]\+//")
 
-		${_ECHO_DEBUG} "Subblock: "${__VALUE__}
-		${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
-		#${_ECHO_DEBUG} "Index: ${__IDX__}"
-		#${_ECHO_DEBUG} "Remaing of tmpIPv6: ${tmpIPv6}"
+		#${_ECHO_DEBUG} "Subblock: "${__VALUE__}
+		#${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
 
 		# Check if the sub-block contains only HEX characters
 		if [ -n "${__RESULT__}" ]; then
@@ -379,7 +363,6 @@ ipv6_compression()
 			break
 		fi
 
-
 		if ! __add_el_to_list "__IPv6_SUBBLOCKS__" $(printf "0x%x" "0x${__VALUE__}"); then
 			${_ECHO_ERROR} "Couldn't add element ${__VALUE__} to the list __IPv6_SUBBLOCKS__"
 			# Restore previous IFS
@@ -387,61 +370,38 @@ ipv6_compression()
 			return 1
 			break
 		fi
-
-#		# Strip the sub-block in front of the IPv6
-#		tmpIPv6=${tmpIPv6#*:}
-#		#${_ECHO_DEBUG} "IPv6: ${tmpIPv6}"
-#
-#		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
-		# Stop if we don't have any characters in tmpIPv6
-#		if [ -z "${tmpIPv6}" ]; then
-#			break
-#		fi
 	done
 
+	# Reset IFS to default
 	__set_IFS_default
-
-#	if [ -n "${tmpIPv6}" ]; then
-#		${_ECHO_WARNING} "Seems that after parsing the ${__IPv6__} a remaining string ${tmpIPv6} was left. It is a correct IPv6 format?"
-#	fi
 
 	__get_number_of_el_in_list "__IPv6_SUBBLOCKS__" "__TOTAL_SUBBLOCKS__"
 
-	${_ECHO_DEBUG} "__IPv6_SUBBLOCKS__: ${__IPv6_SUBBLOCKS__}"
-	${_ECHO_DEBUG} "__TOTAL_SUBBLOCKS__: ${__TOTAL_SUBBLOCKS__}"
+#	${_ECHO_DEBUG} "__IPv6_SUBBLOCKS__: ${__IPv6_SUBBLOCKS__}"
+#	${_ECHO_DEBUG} "__TOTAL_SUBBLOCKS__: ${__TOTAL_SUBBLOCKS__}"
 
 	# Let's check if we have 8 sub-blocks. In case not, then the string is not a valid IPv6.
-	if [ ${__TOTAL_SUBBLOCKS__} -lt 7 ]; then
-		${_ECHO_ERROR} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
-		${_ECHO_ERROR} "provid only uncompressed IPv6 for this tool."
+	if [ ${__TOTAL_SUBBLOCKS__} -lt 8 ]; then
+#		${_ECHO_ERROR} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
+#		${_ECHO_ERROR} "provid only uncompressed IPv6 for this tool."
 		# Restore previous IFS
 		IFS=${OLD_IFS}
 		return 1
 	fi
 
-#	#${_ECHO_DEBUG} "Total groups: ${!IPv6_SUBBLOCKs[@]}"
-#	__get_number_of_el_in_list "__IPv6_SUBBLOCKS__" "__IPv6_TOTAL_SUBBLOCKS__"
-#	${_ECHO_DEBUG} "__IPv6_TOTAL_SUBBLOCKS__ ${__IPv6_TOTAL_SUBBLOCKS__}"
-
+	# Count each continuous groups of 0s sub-blocks. Store the start and end of this group in IPv6_CURRENT_GROUP_*
 	__IPv6_FIRST_0s__=0
 	__IDX__=0
-	# Count each continuous groups of 0s blocks. Store the start and end of this group in IPv6_CURRENT_GROUP_*
 	for __SUBBLOCK__ in ${__IPv6_SUBBLOCKS__}; do
-		# Check if IPv6_SUBBLOCK[${IDX}] is 0x0
-		#__SUBBLOCK__=""
 
-		#echo ${__IDX__}
-		#if ! __get_value_from_list_by_index "__IPv6_SUBBLOCKS__" ${__IDX__} "__SUBBLOCK__"; then
-		#	${_ECHO_DEBUG} "Error occured for __get_value_from_list_by_index()"
-		#	return 1
-		#fi
+		#${_ECHO_DEBUG} "We processing sub-block ${__SUBBLOCK__} on index ${__IDX__}"
 
-		${_ECHO_DEBUG} "My sublock is: ${__SUBBLOCK__}"
+		# DASH can't do HEXA check. We need to change to decimal.
+		__RESULT__=$(printf "%d" "${__SUBBLOCK__}")
 
-		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}"
-		if [ ${__RESULT__} == 0x0 ]; then
-			:
-			# Start count how many continuous 0s sub-blocks we have
+		# Check if current __SUBBLOCK__ is 0x0
+		if [ ${__RESULT__} -eq 0 ]; then
+			# Start to count how many continuous 0s sub-blocks we have
 			# Is this the first 0 in the group? If yes, mark it in __IPv6_FIRST_0s__ and set the start group with __IDX__
 			if [ ${__IPv6_FIRST_0s__} -eq 0 ]; then
 				__IPv6_FIRST_0s__=1
@@ -452,49 +412,54 @@ ipv6_compression()
 			fi
 
 			# In case the IPv6 is ending in 0, we have to check this and add to calculation.
-#			if [ ${__IDX__} -eq $((${#IPv6_SUBBLOCK[@]}-1)) ]; then
-#				if [[ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]]; then
-#					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
-#					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
-#					IPv6_LONGEST_0s_END=${IPv6_CURRENT_GROUP_END}
-#				fi
-#			fi
+			if [ ${__IDX__} -eq $((${__TOTAL_SUBBLOCKS__}-1)) ]; then
+				if [ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]; then
+					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
+					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
+					IPv6_LONGEST_0s_END=${IPv6_CURRENT_GROUP_END}
+				fi
+			fi
 		else
-			:
-#			# If IPv6_SUBBLOCK[${__IDX__}] is not 0x0, then reset __IPv6_FIRST_0s__ and check if the current number of continuous 0s sub-blocks is the longest one.
-#			if [[ ${__IPv6_FIRST_0s__} -eq 1 ]]; then
-#				# Reset FIRST 0 found
-#				__IPv6_FIRST_0s__=0
-#				# The new group of 0s is greater than previous one?
-#				if [[ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]]; then
-#					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
-#					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
-#					IPv6_LONGEST_0s_END=${IPv6_CURRENT_GROUP_END}
-#				fi
-#			fi
+			# If current __SUBBLOCK__ is not 0x0, then reset __IPv6_FIRST_0s__ and check if the current number of continuous 0s sub-blocks is the longest one.
+			if [ ${__IPv6_FIRST_0s__} -eq 1 ]; then
+				# Reset FIRST 0 found
+				__IPv6_FIRST_0s__=0
+				# The new group of 0s is greater than previous one?
+				if [ $((${IPv6_CURRENT_GROUP_END}-${IPv6_CURRENT_GROUP_START})) -gt $((${IPv6_LONGEST_0s_END}-${IPv6_LONGEST_0s_START})) ]; then
+					# New longer 0s group is ${IPv6_LONGEST_0s_GROUP}
+					IPv6_LONGEST_0s_START=${IPv6_CURRENT_GROUP_START}
+					IPv6_LONGEST_0s_END=${IPv6_CURRENT_GROUP_END}
+				fi
+			fi
 		fi
 		__IDX__=$((__IDX__+=1))
 	done
 
-	#${_ECHO_DEBUG} "Longest 0s group is located between: ${IPv6_LONGEST_0s_GROUP[@]}"
-	#${_ECHO_DEBUG} "Compute compressed IPv6.."
+	${_ECHO_DEBUG} "Longest 0s group is located between index: ${IPv6_LONGEST_0s_START} and ${IPv6_LONGEST_0s_END}"
+	${_ECHO_DEBUG} "Compute compressed IPv6.."
 
 	# Let's build the new format of IPv6 using IPv6_LONGEST_0s_START and IPv6_LONGEST_0s_END to compact the IPv6
-#	IPv6=""
-#	for IDX in ${!IPv6_SUBBLOCK[@]}; do
-#		if [[ ${IDX} -ge ${IPv6_LONGEST_0s_START} && ${IDX} -le ${IPv6_LONGEST_0s_END} ]]; then
-#			if [[ ${IDX} -eq ${IPv6_LONGEST_0s_START} ]]; then
-#				IPv6+="::"
-#			fi
-#			continue
-#		fi
-#		# Don't add delimier in first sub-block or just after the "::"
-#		if [[ ${IDX} -eq 0 || ${IDX} -eq $((${IPv6_LONGEST_0s_END}+1)) ]]; then
-#			IPv6+=$(printf "%x" ${IPv6_SUBBLOCK[${IDX}]})
-#		else
-#			IPv6+=$(printf ":%x" ${IPv6_SUBBLOCK[${IDX}]})
-#		fi
-#	done
+	__IPv6__=""
+	__IDX__=0
+	for __SUBBLOCK__ in ${__IPv6_SUBBLOCKS__}; do
+#		${_ECHO_DEBUG} "Processing sub-block: ${__SUBBLOCK__} on index ${__IDX__}"
+		if [ ${__IDX__} -ge ${IPv6_LONGEST_0s_START} -a ${__IDX__} -le ${IPv6_LONGEST_0s_END} ]; then
+			if [ ${__IDX__} -eq ${IPv6_LONGEST_0s_START} ]; then
+				__IPv6__="${__IPv6__}::"
+#				${_ECHO_DEBUG} "Add delimiter ::"
+			fi
+#			${_ECHO_DEBUG} "Sub-block skipped ${__SUBBLOCK__}"
+			__IDX__=$((__IDX__+=1))
+			continue
+		fi
+		# Don't add delimier in first sub-block or just after the "::"
+		if [ ${__IDX__} -eq 0 -o ${__IDX__} -eq $((${IPv6_LONGEST_0s_END}+1)) ]; then
+			__IPv6__="${__IPv6__}"$(printf "%x" ${__SUBBLOCK__})
+		else
+			__IPv6__="${__IPv6__}"$(printf ":%x" ${__SUBBLOCK__})
+		fi
+		__IDX__=$((__IDX__+=1))
+	done
 
 	if [ -z "$2" ]; then
 		echo "${__IPv6__}"
@@ -508,3 +473,162 @@ ipv6_compression()
 	return 0
 }
 
+#->  working on
+ipv6_uncompress()
+{
+	# Uncompress/expand IPv6
+	# Arguments:
+	#   $1 - IPv6 to be expanded
+	#
+	# Optional Arguments:
+	#   $2 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#   0 - in case uncompress was successful.
+	#   1 - in case the IPv6 address is invalid.
+	#
+	# Output:
+	#   In case argument $2 is missing, print the result to output.
+
+	local __IDX__
+	local OLD_IFS
+
+	local __IPv6__="$1"
+
+	local __IPv6_COMPRESS_SUBBLOCK__=0
+	local __IPv6_ADD_0s__=0
+
+	# Number of groups before and after compression. Needed for computation for decompression.
+	local IPv6_BEFORE_SUBBLOCKS=""
+	local IPv6_AFTER_SUBBLOCKS=""
+	local IPv6_TOTAL_SUBBLOCKS=0
+
+	# Each IPv6 uncompressed must have 7 delimiters
+
+	local __SUBBLOCK__
+	local __SUBBLOCK_LEN__
+	local tmpIPv6="${__IPv6__}"
+
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	__set_IFS_default
+
+	#${_ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+
+	# Split in 2 big sub-blocks: BEFORE and AFRTER
+	IPv6_BEFORE_SUBBLOCKS=${__IPv6__%%::*}
+	IPv6_AFTER_SUBBLOCKS=${__IPv6__#*::}
+
+	# If in IPv6_AFTER_SUBBLOCKS we find again ::, then there is a double compression in IPv6 and we have to stop processing it. This is an invalid format
+
+	if [ "${IPv6_AFTER_SUBBLOCKS}" != "${IPv6_AFTER_SUBBLOCKS#*::}" ]; then
+		{ECHO_ERROR} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	# Loop until we don't have any sub-blocks.
+	__IDX__=0
+	IFS=":"
+	for __SUBBLOCK__ in ${__IPv6_BEFORE_SUBBLOCKS__}; do
+
+		# Check if the sub-group is hexa
+		__RESULT__=$(echo ${__SUBBLOCK__} | sed "s/[0-9a-fA-F]\+//")
+
+		#${_ECHO_DEBUG} "Subblock: "${__VALUE__}
+		#${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
+
+		# Check if the sub-block contains only HEX characters
+		if [ -n "${__RESULT__}" ]; then
+			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		SUBBLOCK_LEN=${#SUBBLOCK}
+		# Check if the sub-block contains only HEX characters
+		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
+			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+		fi
+
+		if [[ ${IPv6_COMPRESS_SUBBLOCK} -eq 0 ]]; then
+			IPv6_BEFORE_SUBBLOCKS+=( $(printf "0x%x" "0x${SUBBLOCK}") )
+		else
+			IPv6_AFTER_SUBBLOCKS+=( $(printf "0x%x" "0x${SUBBLOCK}") )
+		fi
+
+		# Strip the sub-block in front of the IPv6
+		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
+		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+
+	done
+
+	((IPv6_TOTAL_SUBBLOCKS=${#IPv6_BEFORE_SUBBLOCKS[@]}+${#IPv6_AFTER_SUBBLOCKS[@]}))
+
+	# Post-checks:
+	# More that 8 sub-blocks is an invalid IPv6 format
+	if [[ ${IPv6_TOTAL_SUBBLOCKS} -gt 8 ]]; then
+		${_ECHO_ERROR} "provided string ${IPv6} has more than 8 sub-blocks! This is an invalid IPv6 format! Please check the IPv6 format!"
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+	# 8 sub-blocks with compression is an invalid IPv6 format
+	if [[ ${IPv6_COMPRESS_SUBBLOCK} -ne 0 && ${IPv6_TOTAL_SUBBLOCKS} -eq 8 ]]; then
+		${_ECHO_ERROR} "provided string ${IPv6} 8 sub-blocks and compression! This is an invalid IPv6 format! Please check the IPv6 format!"
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+	# Less than 8 sub-blocks without compression is an invalid IPv6 format.
+	if [[ ! ${IPv6_COMPRESS_SUBBLOCK} && ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
+		${_ECHO_ERROR} "provided string ${IPv6} has less than 8 sub-blocks without compression! This is an invalid IPv6 format! Please check the IPv6 format!"
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	if [[ ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
+		# Walk through the IPv6 and check where is the compression.
+		((IPv6_ADD_0s=8-${IPv6_TOTAL_SUBBLOCKS}))
+		#${_ECHO_DEBUG} "We must add ${IPv6_ADD_0s} more of groups of 0s."
+
+		# Build first part of the IPv6
+		IPv6=""
+		for IDX in ${!IPv6_BEFORE_SUBBLOCKS[@]}; do
+			if [[ $IDX -eq 0 ]]; then
+				IPv6+=$(printf "%x" ${IPv6_BEFORE_SUBBLOCKS[${IDX}]})
+			else
+				IPv6+=$(printf ":%x" ${IPv6_BEFORE_SUBBLOCKS[${IDX}]})
+			fi
+		done
+
+		for (( IDX=0; IDX<((${IPv6_ADD_0s})); IDX++)); do
+			IPv6+=":0"
+		done
+
+		for IDX in ${!IPv6_AFTER_SUBBLOCKS[@]}; do
+			IPv6+=$(printf ":%x" ${IPv6_AFTER_SUBBLOCKS[${IDX}]})
+		done
+
+	fi
+
+	# Return uncompressed IPv6 with compressed leading 0s
+	if [[ -z "$2" ]]; then
+		echo "${IPv6}"
+	else
+		eval ${2}="${IPv6}"
+	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+
+	return 0
+}
