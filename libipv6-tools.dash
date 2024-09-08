@@ -262,6 +262,84 @@ __add_el_to_list()
 
 }
 
+ipv6_check()
+{
+	# Check if the given string is a valid IPv6
+	# Arguments:
+	#   $1 - IPv6 to be checked
+	#
+	# Returns:
+	#   0 - if is a valid IPv6
+	#   1 - if we found more that 2 compression delimiters "::"
+	#   2 - if there are more than 8 sub-blocks
+	#   3 - if there is sub-block with invalid hexa characters
+	#   4 - if there is a sub-block with a value greater than 0xFFFF or 65535
+	#
+
+	local __IDX__
+	local OLD_IFS
+
+	local __IPv6__="$1"
+	local __IPv6__2="${__IPv6__}"
+
+	local __SUBBLOCK__
+	local IPv6_TOTAL_SUBBLOCKS
+
+	local __RESULT__
+
+	local __IPv6_COMPRESS_SUBBLOCK__=0
+	local __IPv6_ADD_GROUPS_0s__=0
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	__set_IFS_default
+
+	# Split in 2 big sub-blocks: BEFORE and AFRTER
+	IPv6_BEFORE_SUBBLOCKS=${__IPv6__%%::*}
+	IPv6_AFTER_SUBBLOCKS=${__IPv6__#*::}
+
+	# If in IPv6_AFTER_SUBBLOCKS we find again ::, then there is a double compression in IPv6 and we have to stop processing it. This is an invalid format
+	if [ "${IPv6_AFTER_SUBBLOCKS}" != "${IPv6_AFTER_SUBBLOCKS#*::}" ]; then
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	__IPv6__2=$(echo ${__IPv6__2} | sed "s/:/ /g")
+
+	__get_number_of_el_in_list "__IPv6__2" "IPv6_TOTAL_SUBBLOCKS"
+
+	if [ ${IPv6_TOTAL_SUBBLOCKS} -gt 8 ]; then
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 2
+	fi
+
+	for __SUBBLOCK__ in ${__IPv6__2}; do
+		# Check if the sub-group is hexa
+		__RESULT__=$(echo ${__SUBBLOCK__} | sed "s/[0-9a-fA-F]\+//")
+
+		# Check if the sub-block contains only HEX characters
+		if [ -n "${__RESULT__}" ]; then
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 3
+			break
+		fi
+
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
+
+		if [ ${__RESULT__} -gt 65535 ]; then
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 4
+			break
+		fi
+	done
+
+	return 0
+}
+
 ipv6_compression()
 {
 	# Compress IPv6 address.
@@ -289,7 +367,7 @@ ipv6_compression()
 
 	local __IDX__
 	local OLD_IFS
-	local __VALUE__
+#	local __VALUE__
 
 	local __IPv6_SUBBLOCKS__=""
 	local __IPv6_TOTAL_SUBBLOCKS__=""
@@ -332,18 +410,18 @@ ipv6_compression()
 		break
 	fi
 
-	# Loop until we don't have any sub-blocks. We will loop through the string by splitting it by ":" delimiter. If we have less than 8 or more sub-groups in __IPv6__, then there is something wrong with the IPv6 format!
+	# Loop until we don't have any sub-blocks. We will loop through the string by splitting it using ":" delimiter. If we have less than 8 or more sub-groups in __IPv6__, then there is something wrong with the IPv6 format!
 
 	# Change IFS delimier to ":"
 	IFS=":"
-	for __VALUE__ in ${__IPv6__}; do
+	for __SUBBLOCK__ in ${__IPv6__}; do
 
-		__SUBBLOCK_LEN__=${#__VALUE__}
+		__SUBBLOCK_LEN__=${#__SUBBLOCK__}
 
 		# Check if the sub-group is hexa
-		__RESULT__=$(echo ${__VALUE__} | sed "s/[0-9a-fA-F]\+//")
+		__RESULT__=$(echo ${__SUBBLOCK__} | sed "s/[0-9a-fA-F]\+//")
 
-		#${_ECHO_DEBUG} "Subblock: "${__VALUE__}
+		#${_ECHO_DEBUG} "Subblock: "${__SUBBLOCK__}
 		#${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
 
 		# Check if the sub-block contains only HEX characters
@@ -355,7 +433,9 @@ ipv6_compression()
 			break
 		fi
 
-		if [ ${__SUBBLOCK_LEN__} -gt 4 ]; then
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
+
+		if [ ${__RESULT__} -gt 65535 ]; then
 			${_ECHO_ERROR} "provided string ${IPv6} contains subblocks with values greater than 0xFFFF, which is an invalid IPv6 format!"
 			# Restore previous IFS
 			IFS=${OLD_IFS}
@@ -363,8 +443,8 @@ ipv6_compression()
 			break
 		fi
 
-		if ! __add_el_to_list "__IPv6_SUBBLOCKS__" $(printf "0x%x" "0x${__VALUE__}"); then
-			${_ECHO_ERROR} "Couldn't add element ${__VALUE__} to the list __IPv6_SUBBLOCKS__"
+		if ! __add_el_to_list "__IPv6_SUBBLOCKS__" $(printf "%x" "${__RESULT__}"); then
+			${_ECHO_ERROR} "Couldn't add element ${__SUBBLOCK__} to the list __IPv6_SUBBLOCKS__"
 			# Restore previous IFS
 			IFS=${OLD_IFS}
 			return 1
@@ -396,8 +476,8 @@ ipv6_compression()
 
 		#${_ECHO_DEBUG} "We processing sub-block ${__SUBBLOCK__} on index ${__IDX__}"
 
-		# DASH can't do HEXA check. We need to change to decimal.
-		__RESULT__=$(printf "%d" "${__SUBBLOCK__}")
+		# DASH can't do HEXA checks. We need to change to decimal.
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
 
 		# Check if current __SUBBLOCK__ is 0x0
 		if [ ${__RESULT__} -eq 0 ]; then
@@ -454,9 +534,9 @@ ipv6_compression()
 		fi
 		# Don't add delimier in first sub-block or just after the "::"
 		if [ ${__IDX__} -eq 0 -o ${__IDX__} -eq $((${IPv6_LONGEST_0s_END}+1)) ]; then
-			__IPv6__="${__IPv6__}"$(printf "%x" ${__SUBBLOCK__})
+			__IPv6__="${__IPv6__}"$(printf "%x" 0x${__SUBBLOCK__})
 		else
-			__IPv6__="${__IPv6__}"$(printf ":%x" ${__SUBBLOCK__})
+			__IPv6__="${__IPv6__}"$(printf ":%x" 0x${__SUBBLOCK__})
 		fi
 		__IDX__=$((__IDX__+=1))
 	done
@@ -473,7 +553,6 @@ ipv6_compression()
 	return 0
 }
 
-#->  working on
 ipv6_uncompress()
 {
 	# Uncompress/expand IPv6
@@ -496,18 +575,20 @@ ipv6_uncompress()
 	local __IPv6__="$1"
 
 	local __IPv6_COMPRESS_SUBBLOCK__=0
-	local __IPv6_ADD_0s__=0
+	local __IPv6_ADD_GROUPS_0s__=0
 
 	# Number of groups before and after compression. Needed for computation for decompression.
 	local IPv6_BEFORE_SUBBLOCKS=""
 	local IPv6_AFTER_SUBBLOCKS=""
+	local IPv6_BEFORE_TOTAL_SUBBLOCKS=""
+	local IPv6_AFTER_TOTAL_SUBBLOCKS=""
 	local IPv6_TOTAL_SUBBLOCKS=0
 
 	# Each IPv6 uncompressed must have 7 delimiters
 
 	local __SUBBLOCK__
 	local __SUBBLOCK_LEN__
-	local tmpIPv6="${__IPv6__}"
+	local __newIPv6__="${__IPv6__}"
 
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
@@ -520,115 +601,361 @@ ipv6_uncompress()
 	IPv6_BEFORE_SUBBLOCKS=${__IPv6__%%::*}
 	IPv6_AFTER_SUBBLOCKS=${__IPv6__#*::}
 
-	# If in IPv6_AFTER_SUBBLOCKS we find again ::, then there is a double compression in IPv6 and we have to stop processing it. This is an invalid format
+	__newIPv6__=$(echo ${__newIPv6__} | sed "s/:/ /g")
 
-	if [ "${IPv6_AFTER_SUBBLOCKS}" != "${IPv6_AFTER_SUBBLOCKS#*::}" ]; then
-		{ECHO_ERROR} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
+	__get_number_of_el_in_list "__newIPv6__" "IPv6_TOTAL_SUBBLOCKS"
+
+	if [ ${IPv6_TOTAL_SUBBLOCKS} -gt 8 ]; then
+		${_ECHO_ERROR} "provided IPv6 ${__IPv6__} has more than 8 sub-blocks! Please check your IPv6."
 		# Restore previous IFS
 		IFS=${OLD_IFS}
 		return 1
 	fi
 
+	${_ECHO_DEBUG} "Before Sub-blocks: ${IPv6_BEFORE_SUBBLOCKS}"
+	${_ECHO_DEBUG} "After Sub-blocks : ${IPv6_AFTER_SUBBLOCKS}"
+
+	# If both BEFORE and AFTER are the same, there is no compression
+	if [ "${IPv6_BEFORE_SUBBLOCKS}" = "${IPv6_AFTER_SUBBLOCKS}" ]; then
+		# Return uncompressed IPv6 with compressed leading 0s
+		if [ -z "$2" ]; then
+			echo "${__IPv6__}"
+		else
+			eval ${2}="${__IPv6__}"
+		fi
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 0
+	fi
+
+	# If in IPv6_AFTER_SUBBLOCKS we find again ::, then there is a double compression in IPv6 and we have to stop processing it. This is an invalid format
+	if [ "${IPv6_AFTER_SUBBLOCKS}" != "${IPv6_AFTER_SUBBLOCKS#*::}" ]; then
+		{ECHO_ERROR} "privided string ${__IPv6__} contains multiple compression delimiters \"::\". Please check your IPv6."
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	# Let's calculate how many groups of 0s we need to add to our IPv6.
+	# Replace delimiter ":" with spaces
+	IPv6_BEFORE_SUBBLOCKS=$(echo ${IPv6_BEFORE_SUBBLOCKS} | sed "s/:/ /g")
+	IPv6_AFTER_SUBBLOCKS=$(echo ${IPv6_AFTER_SUBBLOCKS} | sed "s/:/ /g")
+
+	${_ECHO_DEBUG} "Before Sub-blocks: ${IPv6_BEFORE_SUBBLOCKS}"
+	${_ECHO_DEBUG} "After Sub-blocks : ${IPv6_AFTER_SUBBLOCKS}"
+
+	if ! __get_number_of_el_in_list "IPv6_BEFORE_SUBBLOCKS" "IPv6_BEFORE_TOTAL_SUBBLOCKS"; then
+		${_ECHO_ERROR} "an error occured when we tried to count number of sub-blocks before compression!"
+		return 1
+	fi
+	if ! __get_number_of_el_in_list "IPv6_AFTER_SUBBLOCKS" "IPv6_AFTER_TOTAL_SUBBLOCKS"; then
+		${_ECHO_ERROR} "an error occured when we tried to count number of sub-blocks after compression!"
+		return 1
+	fi
+
+	IPv6_TOTAL_SUBBLOCKS=$((${IPv6_BEFORE_TOTAL_SUBBLOCKS}+${IPv6_AFTER_TOTAL_SUBBLOCKS}))
+	__IPv6_ADD_GROUPS_0s__=$((8-${IPv6_TOTAL_SUBBLOCKS}))
+
+	${_ECHO_DEBUG} "Total number of sub-blocks before compression: ${IPv6_BEFORE_TOTAL_SUBBLOCKS}."
+	${_ECHO_DEBUG} "Total number of sub-blocks after compression : ${IPv6_AFTER_TOTAL_SUBBLOCKS}"
+	${_ECHO_DEBUG} "Total IPv6 sub-blocks : ${IPv6_TOTAL_SUBBLOCKS}"
+	${_ECHO_DEBUG} "We need to add ${__IPv6_ADD_GROUPS_0s__} of 0s groups."
+	${_ECHO_DEBUG} "IPv6_BEFORE_SUBBLOCKS=\"${IPv6_BEFORE_SUBBLOCKS}\""
+
+	__IPv6__=""
 	# Loop until we don't have any sub-blocks.
 	__IDX__=0
-	IFS=":"
-	for __SUBBLOCK__ in ${__IPv6_BEFORE_SUBBLOCKS__}; do
+
+	# Compute first part of IPv6 using BEFORE sub-blocks
+	for __SUBBLOCK__ in ${IPv6_BEFORE_SUBBLOCKS}; do
 
 		# Check if the sub-group is hexa
 		__RESULT__=$(echo ${__SUBBLOCK__} | sed "s/[0-9a-fA-F]\+//")
 
-		#${_ECHO_DEBUG} "Subblock: "${__VALUE__}
+		${_ECHO_DEBUG} "Subblock: "${__SUBBLOCK__}
 		#${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
 
 		# Check if the sub-block contains only HEX characters
 		if [ -n "${__RESULT__}" ]; then
-			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			${_ECHO_ERROR} "provided string ${__IPv6__} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
 			# Restore previous IFS
 			IFS=${OLD_IFS}
 			return 1
 			break
 		fi
 
-		SUBBLOCK_LEN=${#SUBBLOCK}
-		# Check if the sub-block contains only HEX characters
-		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
+		if [ ${__RESULT__} -gt 65535 ]; then
+			${_ECHO_ERROR} "provided string ${IPv6} contains a subblock (${__SUBBLOCK__}) with values greater than 0xFFFF, which is an invalid IPv6 format!"
 			# Restore previous IFS
 			IFS=${OLD_IFS}
 			return 1
+			break
 		fi
 
-		if [[ ${IPv6_COMPRESS_SUBBLOCK} -eq 0 ]]; then
-			IPv6_BEFORE_SUBBLOCKS+=( $(printf "0x%x" "0x${SUBBLOCK}") )
+		#SUBBLOCK_LEN=${#__SUBBLOCK__}
+
+		if [ -z "${__IPv6__}" ]; then
+			__IPv6__=$(printf "%x" ${__RESULT__})
 		else
-			IPv6_AFTER_SUBBLOCKS+=( $(printf "0x%x" "0x${SUBBLOCK}") )
+			__IPv6__=$(printf "%s:%x" "${__IPv6__}" ${__RESULT__})
 		fi
-
-		# Strip the sub-block in front of the IPv6
-		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
-
+		__IDX__=$((__IDX__+=1))
 	done
 
-	((IPv6_TOTAL_SUBBLOCKS=${#IPv6_BEFORE_SUBBLOCKS[@]}+${#IPv6_AFTER_SUBBLOCKS[@]}))
+	${_ECHO_DEBUG} "Partial uncompressed IPv6: ${__IPv6__}"
+
+	# Compute compression IPv6 by repace compression delimiter "::" with 0s sub-blocks
+	for __SUBBLOCK__ in `seq 1 ${__IPv6_ADD_GROUPS_0s__}`; do
+		if [ -z "${__IPv6__}" ]; then
+			__IPv6__="0"
+		else
+			__IPv6__="${__IPv6__}:0"
+		fi
+	done
+
+	# Compute last part of IPv6 using BEFORE sub-blocks
+	for __SUBBLOCK__ in ${IPv6_AFTER_SUBBLOCKS}; do
+
+		# Check if the sub-group is hexa
+		__RESULT__=$(echo ${__SUBBLOCK__} | sed "s/[0-9a-fA-F]\+//")
+
+		${_ECHO_DEBUG} "Subblock: "${__SUBBLOCK__}
+		#${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
+
+		# Check if the sub-block contains only HEX characters
+		if [ -n "${__RESULT__}" ]; then
+			${_ECHO_ERROR} "provided string ${__IPv6__} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
+		if [ ${__RESULT__} -gt 65535 ]; then
+			${_ECHO_ERROR} "provided string ${IPv6} contains a subblock (${__SUBBLOCK__}) with values greater than 0xFFFF, which is an invalid IPv6 format!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		if [ -z "${__IPv6__}" ]; then
+			__IPv6__=$(printf "%x" ${__RESULT__})
+		else
+			__IPv6__=$(printf "%s:%x" "${__IPv6__}" ${__RESULT__})
+		fi
+		__IDX__=$((__IDX__+=1))
+	done
 
 	# Post-checks:
-	# More that 8 sub-blocks is an invalid IPv6 format
-	if [[ ${IPv6_TOTAL_SUBBLOCKS} -gt 8 ]]; then
-		${_ECHO_ERROR} "provided string ${IPv6} has more than 8 sub-blocks! This is an invalid IPv6 format! Please check the IPv6 format!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
-		return 1
-	fi
-	# 8 sub-blocks with compression is an invalid IPv6 format
-	if [[ ${IPv6_COMPRESS_SUBBLOCK} -ne 0 && ${IPv6_TOTAL_SUBBLOCKS} -eq 8 ]]; then
-		${_ECHO_ERROR} "provided string ${IPv6} 8 sub-blocks and compression! This is an invalid IPv6 format! Please check the IPv6 format!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
-		return 1
-	fi
-	# Less than 8 sub-blocks without compression is an invalid IPv6 format.
-	if [[ ! ${IPv6_COMPRESS_SUBBLOCK} && ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
-		${_ECHO_ERROR} "provided string ${IPv6} has less than 8 sub-blocks without compression! This is an invalid IPv6 format! Please check the IPv6 format!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
-		return 1
-	fi
-
-	if [[ ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
-		# Walk through the IPv6 and check where is the compression.
-		((IPv6_ADD_0s=8-${IPv6_TOTAL_SUBBLOCKS}))
-		#${_ECHO_DEBUG} "We must add ${IPv6_ADD_0s} more of groups of 0s."
-
-		# Build first part of the IPv6
-		IPv6=""
-		for IDX in ${!IPv6_BEFORE_SUBBLOCKS[@]}; do
-			if [[ $IDX -eq 0 ]]; then
-				IPv6+=$(printf "%x" ${IPv6_BEFORE_SUBBLOCKS[${IDX}]})
-			else
-				IPv6+=$(printf ":%x" ${IPv6_BEFORE_SUBBLOCKS[${IDX}]})
-			fi
-		done
-
-		for (( IDX=0; IDX<((${IPv6_ADD_0s})); IDX++)); do
-			IPv6+=":0"
-		done
-
-		for IDX in ${!IPv6_AFTER_SUBBLOCKS[@]}; do
-			IPv6+=$(printf ":%x" ${IPv6_AFTER_SUBBLOCKS[${IDX}]})
-		done
-
-	fi
 
 	# Return uncompressed IPv6 with compressed leading 0s
-	if [[ -z "$2" ]]; then
-		echo "${IPv6}"
+	if [ -z "$2" ]; then
+		echo "${__IPv6__}"
 	else
-		eval ${2}="${IPv6}"
+		eval ${2}="${__IPv6__}"
 	fi
 
 	# Restore previous IFS
 	IFS=${OLD_IFS}
 
 	return 0
+}
+
+ipv6_leading_zero_compression()
+{
+	# Remove leading zeros from each sub-block of the IPv6
+	# Arguments:
+	#   $1 - IPv6 to remove leading zeros.
+	#
+	# Optional Arguments:
+	#   $2 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#    0 - in case leading zero compression was successful.
+	#    1 - in case the IPv6 address is invalid.
+	#
+	# Output:
+	#   In case argument $2 is missing, print the result to output.
+
+	local IDX
+	local OLD_IFS
+
+	local __IPv6__="$1"
+	local IPv6_COMPRESS_SUBBLOCK=0
+
+	local IPv6_BEFORE_SUBBLOCKS=""
+	local IPv6_AFTER_SUBBLOCKS=""
+
+	local __SUBBLOCK__
+	local SUBBLOCK_LEN
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	__set_IFS_default
+
+	# Split in 2 big sub-blocks: BEFORE and AFRTER
+	IPv6_BEFORE_SUBBLOCKS=${__IPv6__%%::*}
+	IPv6_AFTER_SUBBLOCKS=${__IPv6__#*::}
+
+	# If in IPv6_AFTER_SUBBLOCKS we find again ::, then there is a double compression in IPv6 and we have to stop processing it. This is an invalid format
+	if [ "${IPv6_AFTER_SUBBLOCKS}" != "${IPv6_AFTER_SUBBLOCKS#*::}" ]; then
+		{ECHO_ERROR} "privided string ${__IPv6__} contains multiple compression delimiters \"::\". Please check your IPv6."
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	# Let's calculate how many groups of 0s we need to add to our IPv6.
+	# Replace delimiter ":" with spaces
+	IPv6_BEFORE_SUBBLOCKS=$(echo ${IPv6_BEFORE_SUBBLOCKS} | sed "s/:/ /g")
+	IPv6_AFTER_SUBBLOCKS=$(echo ${IPv6_AFTER_SUBBLOCKS} | sed "s/:/ /g")
+
+	__IPv6__=""
+
+	for __SUBBLOCK__ in ${IPv6_BEFORE_SUBBLOCKS}; do
+		# Check if the sub-group is hexa
+		__RESULT__=$(echo ${__SUBBLOCK__} | sed "s/[0-9a-fA-F]\+//")
+
+		${_ECHO_DEBUG} "Subblock: "${__SUBBLOCK__}
+		#${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
+
+		# Check if the sub-block contains only HEX characters
+		if [ -n "${__RESULT__}" ]; then
+			${_ECHO_ERROR} "provided string ${__IPv6__} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
+		if [ ${__RESULT__} -gt 65535 ]; then
+			${_ECHO_ERROR} "provided string ${__IPv6__} contains a subblock (${__SUBBLOCK__}) with values greater than 0xFFFF, which is an invalid IPv6 format!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		if [ -z "${__IPv6__}" ]; then
+			__IPv6__=$(printf "%x" ${__RESULT__})
+		else
+			__IPv6__=$(printf "%s:%x" "${__IPv6__}" ${__RESULT__})
+		fi
+		__IDX__=$((__IDX__+=1))
+	done
+
+	if [ "${IPv6_BEFORE_SUBBLOCKS}" = "${IPv6_AFTER_SUBBLOCKS}" ]; then
+		# Return zero leading removed IPv6
+		if [ -z "$2" ]; then
+			echo "${__IPv6__}"
+		else
+			eval ${2}="${__IPv6__}"
+		fi
+
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+
+		return 0
+	fi
+
+	# Add additional ":" to form compression delimiter "::"
+	__IPv6__="${__IPv6__}:"
+
+	for __SUBBLOCK__ in ${IPv6_AFTER_SUBBLOCKS}; do
+		# Check if the sub-group is hexa
+		__RESULT__=$(echo ${__SUBBLOCK__} | sed "s/[0-9a-fA-F]\+//")
+
+		${_ECHO_DEBUG} "Subblock: "${__SUBBLOCK__}
+		#${_ECHO_DEBUG} "Subblock len: "${__SUBBLOCK_LEN__}
+
+		# Check if the sub-block contains only HEX characters
+		if [ -n "${__RESULT__}" ]; then
+			${_ECHO_ERROR} "provided string ${__IPv6__} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
+		if [ ${__RESULT__} -gt 65535 ]; then
+			${_ECHO_ERROR} "provided string ${IPv6} contains a subblock (${__SUBBLOCK__}) with values greater than 0xFFFF, which is an invalid IPv6 format!"
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		if [ -z "${__IPv6__}" ]; then
+			__IPv6__=$(printf "%x" ${__RESULT__})
+		else
+			__IPv6__=$(printf "%s:%x" "${__IPv6__}" ${__RESULT__})
+		fi
+		__IDX__=$((__IDX__+=1))
+	done
+
+	# Return zero leading removed IPv6
+	if [ -z "$2" ]; then
+		echo "${__IPv6__}"
+	else
+		eval ${2}="${__IPv6__}"
+	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+
+	return 0
+}
+
+ipv6_first_subnet_address()
+{
+	# Calculate the first address of IPv6 using the prefix
+	# Arguments:
+	#   $1 - IPv6 subnet (IPv6/PREFIX format).
+	#
+	# Optional Arguments:
+	#   $2 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
+	#
+	# Returns:
+	#   IPv6 first address of the subnet.
+	#
+	# Exits:
+	#    1 - in case the IPv6 address is invalid.
+	#
+	# Output:
+	#   In case argument $2 is missing, print the result to output.
+	#
+	# To simplify the maths, we are using an array which contains 16 types of prefix masks and we will map prefixes from 0 to 15 to this array
+	# The array will contain:
+	# 0x0000 (0000000000000000b), 0x8000 (1000000000000000b), 0xC000 (1100000000000000b), 0xE000 (1110000000000000b), 0xF000 (1111000000000000b), 0xF800 (1111100000000000b), 0xFC00 (1111110000000000b), 0xFE00 (1111111000000000b), 0xFF00 (1111111100000000b),
+	# 0xFF80 (1111111110000000b), 0xFFC0 (1111111111000000b), 0xFFE0 (1111111111100000b), 0xFFF0 (1111111111110000b), 0xFFF8 (1111111111111000b), 0xFFFC (1111111111111100b), 0xFFFE (1111111111111110b)
+	#
+	# We are using 16 bits of mask because IPv6 has sub-blocks of 16 bits and will be easy to map each prefix sub-block to each uncompressed IPv6 sub-block.
+	#
+	# We will split the prefix in groups of 16 and reminder.
+	# For example:
+	#    Prefix 28: 28/16 = 1 and reminder 12. We will have only one group of 16 bits which by default will be 0xFFFF and second group will be 12 bits mapped to 0xFFF0 and the reset 0x0000.
+	#    Prefix 48: 42/16 = 2 and reminder 10. We will have only two groups of 16 bits which by default will be 0xFFFF and third group will be 10 bits mapped to 0xFFC0 and the reset 0x0000.
+	#
+
+	local IDX
+	local IPv6="$1"
+	local IPv6_PREFIX
+	local VAR_NAME=""
+
+	local OLD_IFS
+
+	# Prefix to mask mapping using index in array
+	local PREFIX_MAP="0x0000 0x8000 0xC000 0xE000 0xF000 0xF800 0xFC00 0xFE00 0xFF00 0xFF80 0xFFC0 0xFFE0 0xFFF0 0xFFF8 0xFFFC 0xFFFE"
+
+	local IPv6_SUBBLOCKS=( )
+	# We will set IPv6 mask sub-blocks with 0x0000 by default
+	local IPv6_MASK_SUBBLOCKS="0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000"
+	local newValue
+
+	:
 }
