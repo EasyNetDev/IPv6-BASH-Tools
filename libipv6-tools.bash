@@ -62,6 +62,104 @@ _echo_error()
 _ECHO_ERROR=_echo_error
 fi
 
+ipv6_check()
+{
+	# Check if the given string is a valid IPv6
+	# Arguments:
+	#   $1 - IPv6 to be checked
+	#
+	# Returns:
+	#   0 - if is a valid IPv6
+	#   1 - if is not a valid IPv6.
+	#
+
+	local IDX
+	local OLD_IFS
+
+	local IPv6="$1"
+
+	local IPv6_COMPRESS_SUBBLOCK=0
+	local IPv6_SUBBLOCKS=( )
+
+	local SUBBLOCK
+	local SUBBLOCK_LEN
+	local SUBBLOCK_START=0
+	local tmpIPv6="$IPv6"
+
+	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
+	OLD_IFS=${IFS}
+	IFS=$' \t\n'
+
+	# Loop until we don't have any sub-blocks.
+	for ((IDX=0; IDX<40; IDX++)); do
+
+		# In case tmpIPv6 is empty after stripping, let's stop.
+		if [[ -z "$tmpIPv6" ]]; then
+			break
+		fi
+
+		# Let's check if we have compression delimiter "::"
+		if [[ "${tmpIPv6:0:2}" == "::" ]]; then
+			((IPv6_COMPRESS_SUBBLOCK++))
+			if [[ ${IPv6_COMPRESS_SUBBLOCK} -gt 1 ]]; then
+				# Restore previous IFS
+				IFS=${OLD_IFS}
+				return 1
+				break
+			fi
+			# strip this :: delimiter and continue with the search
+			tmpIPv6=${tmpIPv6:2}
+			continue
+		fi
+
+		# Let's check if we have only "delimier"
+		if [[ "${tmpIPv6:0:1}" == ":" ]]; then
+			tmpIPv6=${tmpIPv6:1}
+			continue
+		fi
+
+		SUBBLOCK=${tmpIPv6%%:*}
+		SUBBLOCK_LEN=${#SUBBLOCK}
+		# Check if the sub-block contains only HEX characters
+		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
+			# Restore previous IFS
+			IFS=${OLD_IFS}
+			return 1
+			break
+		fi
+
+		IPv6_SUBBLOCKS+=( $(printf "0x%x" "0x${SUBBLOCK}") )
+
+		# Strip the sub-block in front of the IPv6
+		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
+		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+
+		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
+	done
+
+	if [[ ${#IPv6_SUBBLOCKS[@]} -gt 8 ]]; then
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+	# 8 sub-blocks with compression is an invalid IPv6 format
+	if [[ ${IPv6_COMPRESS_SUBBLOCK} -ne 0 && ${IPv6_SUBBLOCKS} -eq 8 ]]; then
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+	# Less than 8 sub-blocks without compression is an invalid IPv6 format.
+	if [[ ${IPv6_COMPRESS_SUBBLOCK} -eq 0 && ${IPv6_SUBBLOCKS} -lt 8 ]]; then
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+	return 0
+}
+
 ipv6_compression()
 {
 	# Compress IPv6 address.
@@ -533,6 +631,9 @@ ipv6_first_subnet_address()
 	local IPv6_PREFIX
 	local VAR_NAME=""
 
+	local SPLIT_PREFIX_1
+	local SPLIT_PREFIX_2
+
 	local OLD_IFS
 
 	# Prefix to mask mapping using index in array
@@ -641,100 +742,3 @@ ipv6_last_subnet_address()
 	IFS=${OLD_IFS}
 }
 
-ipv6_check()
-{
-	# Check if the given string is a valid IPv6
-	# Arguments:
-	#   $1 - IPv6 to be checked
-	#
-	# Returns:
-	#   0 - if is a valid IPv6
-	#   1 - if is not a valid IPv6.
-	#
-
-	local IDX
-	local OLD_IFS
-
-	local IPv6="$1"
-
-	local IPv6_COMPRESS_SUBBLOCK=0
-	local IPv6_SUBBLOCKS=( )
-
-	local SUBBLOCK
-	local SUBBLOCK_LEN
-	local SUBBLOCK_START=0
-	local tmpIPv6="$IPv6"
-
-	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	OLD_IFS=${IFS}
-	IFS=$' \t\n'
-
-	# Loop until we don't have any sub-blocks.
-	for ((IDX=0; IDX<40; IDX++)); do
-
-		# In case tmpIPv6 is empty after stripping, let's stop.
-		if [[ -z "$tmpIPv6" ]]; then
-			break
-		fi
-
-		# Let's check if we have compression delimiter "::"
-		if [[ "${tmpIPv6:0:2}" == "::" ]]; then
-			((IPv6_COMPRESS_SUBBLOCK++))
-			if [[ ${IPv6_COMPRESS_SUBBLOCK} -gt 1 ]]; then
-				# Restore previous IFS
-				IFS=${OLD_IFS}
-				return 1
-				break
-			fi
-			# strip this :: delimiter and continue with the search
-			tmpIPv6=${tmpIPv6:2}
-			continue
-		fi
-
-		# Let's check if we have only "delimier"
-		if [[ "${tmpIPv6:0:1}" == ":" ]]; then
-			tmpIPv6=${tmpIPv6:1}
-			continue
-		fi
-
-		SUBBLOCK=${tmpIPv6%%:*}
-		SUBBLOCK_LEN=${#SUBBLOCK}
-		# Check if the sub-block contains only HEX characters
-		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			# Restore previous IFS
-			IFS=${OLD_IFS}
-			return 1
-			break
-		fi
-
-		IPv6_SUBBLOCKS+=( $(printf "0x%x" "0x${SUBBLOCK}") )
-
-		# Strip the sub-block in front of the IPv6
-		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
-
-		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
-	done
-
-	if [[ ${#IPv6_SUBBLOCKS[@]} -gt 8 ]]; then
-		# Restore previous IFS
-		IFS=${OLD_IFS}
-		return 1
-	fi
-	# 8 sub-blocks with compression is an invalid IPv6 format
-	if [[ ${IPv6_COMPRESS_SUBBLOCK} -ne 0 && ${IPv6_SUBBLOCKS} -eq 8 ]]; then
-		# Restore previous IFS
-		IFS=${OLD_IFS}
-		return 1
-	fi
-	# Less than 8 sub-blocks without compression is an invalid IPv6 format.
-	if [[ ${IPv6_COMPRESS_SUBBLOCK} -eq 0 && ${IPv6_SUBBLOCKS} -lt 8 ]]; then
-		# Restore previous IFS
-		IFS=${OLD_IFS}
-		return 1
-	fi
-
-	# Restore previous IFS
-	IFS=${OLD_IFS}
-	return 0
-}

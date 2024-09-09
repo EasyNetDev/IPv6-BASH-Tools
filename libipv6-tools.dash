@@ -929,7 +929,7 @@ ipv6_first_subnet_address()
 	# Output:
 	#   In case argument $2 is missing, print the result to output.
 	#
-	# To simplify the maths, we are using an array which contains 16 types of prefix masks and we will map prefixes from 0 to 15 to this array
+	# To simplify the maths, we are using a list which contains 16 types of prefix masks and we will map prefixes from 0 to 15 to this array
 	# The array will contain:
 	# 0x0000 (0000000000000000b), 0x8000 (1000000000000000b), 0xC000 (1100000000000000b), 0xE000 (1110000000000000b), 0xF000 (1111000000000000b), 0xF800 (1111100000000000b), 0xFC00 (1111110000000000b), 0xFE00 (1111111000000000b), 0xFF00 (1111111100000000b),
 	# 0xFF80 (1111111110000000b), 0xFFC0 (1111111111000000b), 0xFFE0 (1111111111100000b), 0xFFF0 (1111111111110000b), 0xFFF8 (1111111111111000b), 0xFFFC (1111111111111100b), 0xFFFE (1111111111111110b)
@@ -942,20 +942,159 @@ ipv6_first_subnet_address()
 	#    Prefix 48: 42/16 = 2 and reminder 10. We will have only two groups of 16 bits which by default will be 0xFFFF and third group will be 10 bits mapped to 0xFFC0 and the reset 0x0000.
 	#
 
-	local IDX
-	local IPv6="$1"
-	local IPv6_PREFIX
-	local VAR_NAME=""
+	local __IDX__
+	local __IDX2__
+	local __IPv6__="$1"
+	local __IPv6_PREFIX__
+	local __IPv6_MASK__
+	local __VAR_NAME__=""
+	local __RET__
+	local __RESULT__
+	local __VALUE__
+
+
+	local __IPv6_LIST__
+	local __SUBBLOCK__
+	local __SUBBLOCK_PREFIX__
+
+
+	local __SPLIT_PREFIX_1__
+	local __SPLIT_PREFIX_2__
+	local __PREFIX_2__
 
 	local OLD_IFS
 
 	# Prefix to mask mapping using index in array
-	local PREFIX_MAP="0x0000 0x8000 0xC000 0xE000 0xF000 0xF800 0xFC00 0xFE00 0xFF00 0xFF80 0xFFC0 0xFFE0 0xFFF0 0xFFF8 0xFFFC 0xFFFE"
+	local __PREFIX_MAP__="0x0000 0x8000 0xC000 0xE000 0xF000 0xF800 0xFC00 0xFE00 0xFF00 0xFF80 0xFFC0 0xFFE0 0xFFF0 0xFFF8 0xFFFC 0xFFFE"
 
-	local IPv6_SUBBLOCKS=( )
+	local __IPv6_SUBBLOCKS__=""
 	# We will set IPv6 mask sub-blocks with 0x0000 by default
-	local IPv6_MASK_SUBBLOCKS="0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000"
+	local __IPv6_MASK_SUBBLOCKS__=""
 	local newValue
 
-	:
+	__set_IFS_default
+
+	# Split the IPv6 and IPv6_PREFIX
+	__IPv6_PREFIX__=${__IPv6__#*/}
+	__IPv6__=${__IPv6__%/*}
+
+	# Check if we have IPv6/PREFIX format
+	if [ "${__IPv6_PREFIX__}" = "${__IPv6__}" ]; then
+		# Prefix couldn't be extracted from argument ${__IPv6__}
+		# Presume 128 prefix
+		__IPv6_PREFIX__=128
+	fi
+
+	__RESULT__=$(echo ${__IPv6_PREFIX__} | sed "s/^[0-9]\+$//g")
+
+	if [ -n "${__RESULT__}" ]; then
+		${_ECHO_ERROR} "Invalid IPv6 prefix ${__IPv6_PREFIX__}! IPv6 prefix must be an integer number between 1 and 128!"
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	if [ ${__IPv6_PREFIX__} -lt 1 -o ${__IPv6_PREFIX__} -gt 128 ]; then
+		${_ECHO_ERROR} "Invalid IPv6 prefix ${__IPv6_PREFIX__}! Prefix must be between 1 and 128! Please correct the IPv6 string!"
+		# Restore previous IFS
+		IFS=${OLD_IFS}
+		return 1
+	fi
+
+	ipv6_check "${__IPv6__}"
+	__RET__=$?
+
+	if [ ${__RET__} -ne 0 ]; then
+		${_ECHO_ERROR} "Invalid IPv6 format!"
+		case ${__RET__} in
+			1)
+				${_ECHO_ERROR} "Found more than one compression delimiter \"::\"!"
+			;;
+			2)
+				${_ECHO_ERROR} "Found more than 8 sub-blocks!"
+			;;
+			3)
+				${_ECHO_ERROR} "Found invalid hexa characters!"
+			;;
+			4)
+				${_ECHO_ERROR} "Found a sub-block with a value greater than 0xFFFF!"
+			;;
+			*)
+				${_ECHO_ERROR} "Unknown error."
+			;;
+		esac
+		return ${__RET__}
+	fi
+
+	# Uncompress the IPv6
+	__IPv6__=$(ipv6_uncompress "${__IPv6__}")
+
+	# Calculate the prefix
+	__SPLIT_PREFIX_1__=$((${__IPv6_PREFIX__}/16))
+	__SPLIT_PREFIX_2__=$((${__IPv6_PREFIX__}%16))
+
+	# Build an array for prefixes
+	# First __SPLIT_PREFIX_1__ sub-blocks they have 0xFFFF prefix
+	#__IDX__=1
+	for __IDX__ in `seq 1 ${__SPLIT_PREFIX_1__}`; do
+		if [ -z "${__IPv6_MASK_SUBBLOCKS__}" ]; then
+			__IPv6_MASK_SUBBLOCKS__="0xFFFF"
+		else
+			__IPv6_MASK_SUBBLOCKS__="${__IPv6_MASK_SUBBLOCKS__} 0xFFFF"
+		fi
+	done
+
+	# In case we have don't have all 8 prefix sub-blocks completed, continue with adding __PREFIX_2__ and 0x0000 till the 8th sub-block
+	if [ ${__IDX__} -lt 8 ]; then
+
+		# In case __SPLIT_PREFIX_2__ is not 0, then retrieve the prefix from the __PREFIX_MAP__ using __SPLIT_PREFIX_2__ as index
+		if [ ${__SPLIT_PREFIX_2__} -gt 1 ]; then
+			# Increase __IDX__ by 1
+			__IDX__=$((__IDX__+=1))
+			__get_value_from_list_by_index "__PREFIX_MAP__" "${__SPLIT_PREFIX_2__}" "__PREFIX_2__"
+			__IPv6_MASK_SUBBLOCKS__="${__IPv6_MASK_SUBBLOCKS__} ${__PREFIX_2__}"
+		fi
+
+		# The next sub-block group must start from __IDX__+1
+		for __IDX__ in `seq $((__IDX__+=1)) 8`; do
+			__IPv6_MASK_SUBBLOCKS__="${__IPv6_MASK_SUBBLOCKS__} 0x0000"
+		done
+	fi
+
+	#echo "IPv6_MASK=${__IPv6_MASK_SUBBLOCKS__}"
+
+	# Change the uncompressed IPv6 format to a space-separated list
+	__IPv6_LIST__=$(echo ${__IPv6__} | sed "s/:/ /g")
+
+	# Move through each IPv6 sub-block and IPv6_PREFIX block, apply AND bitwise and store the result.
+	# The result will be decimal, even the maths are done initially in HEXA
+	__IPv6__=""
+	for __IDX__ in `seq 0 7`; do
+		#echo ${__IDX__}
+		__get_value_from_list_by_index "__IPv6_LIST__" ${__IDX__} "__SUBBLOCK__"
+		__get_value_from_list_by_index "__IPv6_MASK_SUBBLOCKS__" ${__IDX__} "__SUBBLOCK_PREFIX__"
+		__SUBBLOCK__="0x${__SUBBLOCK__}"
+		#echo "Sub-block: ${__SUBBLOCK__}, Sub-block prefix: ${__SUBBLOCK_PREFIX__}"
+		__VALUE__=$((${__SUBBLOCK__} & ${__SUBBLOCK_PREFIX__}))
+		__VALUE__=$(printf "%x" ${__VALUE__})
+		echo "Sub-block ${__SUBBLOCK__} vs ${__VALUE__}"
+		if [ -z "${__IPv6__}" ]; then
+			__IPv6__="${__VALUE__}"
+		else
+			__IPv6__="${__IPv6__}:${__VALUE__}"
+		fi
+	done
+
+	# Return zero leading removed IPv6
+	if [ -z "$2" ]; then
+		echo "${__IPv6__}"
+	else
+		eval ${2}="${__IPv6__}"
+	fi
+
+	# Restore previous IFS
+	IFS=${OLD_IFS}
+
+	return 0
+
 }
