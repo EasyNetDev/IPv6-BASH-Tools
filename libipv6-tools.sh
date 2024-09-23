@@ -382,29 +382,6 @@ ipv6_check_skip_reset()
 	__SKIP_IPV6_CHECK__=0
 }
 
-# __ipv6_exit__()
-# {
-# 	# Because each time when we need to exit a function we have to set the a __RETURN_VAR_X__ with __STRING__ and __restore_IFS
-# 	# we can use this function
-# 	#
-# 	# Arguments:
-# 	#   $1 - Name of the variable (can be local in a function or global) that contains the list. Use only just "VAR", not "$VAR"
-# 	#   $2 - String to be set into __RETURN_VAR_X__ or output to console
-# 	#
-# 	# If we want to output to console the string, set $2 to ""
-#
-# 	local __RETURN_VAR_X__="$1"
-# 	local __STRING__="$2"
-#
-# 	if [ -n "${__RETURN_VAR_X__}" ]; then
-# 		eval ${__RETURN_VAR_X__}="\${__STRING__}"
-# 	else
-# 		# Print if we have something stored in __STRING__
-# 		printf "%s" "${__STRING__}"
-# 	fi
-# 	__restore_IFS
-# }
-
 ipv6_check_errno()
 {
 	# Print explained error for ipv6_check() returns
@@ -669,7 +646,6 @@ ipv6_compress()
 	if [ "${__SKIP_IPV6_CHECK__}" != "1" ]; then
 		ipv6_check "${__IPv6__}"
 		__RET__=$?
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ ${__RET__} -gt 0 ]; then
 			if [ -n "${__RETURN_VAR__}" ]; then
 				eval ${__RETURN_VAR__}=""
@@ -687,7 +663,6 @@ ipv6_compress()
 	if [ "${__IPv6__}" != "${__COMPRESSION__}" ]; then
 		# Compression detected. Return the same IPv6
 		${_ECHO_DEBUG_1_} "${__FN_NAME__}: Compression detected: ${__IPv6__} vs ${__COMPRESSION__}"
-# 		__ipv6_exit__ "${__RETURN_VAR__}" "${__IPv6__}"
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}="${__IPv6__}"
 		else
@@ -773,7 +748,6 @@ ipv6_compress()
 		__IDX__=$((__IDX__+=1))
 	done
 
-# 	__ipv6_exit__ "${__RETURN_VAR__}" "${__newIPv6__}"
 	if [ -n "${__RETURN_VAR__}" ]; then
 		eval ${__RETURN_VAR__}="${__newIPv6__}"
 	else
@@ -837,7 +811,6 @@ ipv6_decompress()
 		ipv6_check "${__IPv6__}"
 		__RET__=$?
 		if [ ${__RET__} -gt 0 ]; then
-# 			__ipv6_exit__ "${__RETURN_VAR__}" ""
 			if [ -n "${__RETURN_VAR__}" ]; then
 				eval ${__RETURN_VAR__}=""
 			fi
@@ -849,7 +822,6 @@ ipv6_decompress()
 	if [ "${__IPv6__}" = "::" ]; then
 		__newIPv6__="0:0:0:0:0:0:0:0"
 		${_ECHO_DEBUG_1_} "${__FN_NAME__}: Found valid IPv6 (${__IPv6__}) Unspecified address."
-# 		__ipv6_exit__ "${__RETURN_VAR__}" "${__newIPv6__}"
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}="${__newIPv6__}"
 		else
@@ -869,7 +841,6 @@ ipv6_decompress()
 
 	if [ ${__IPv6_TOTAL_SUBBLOCKS__} -gt 8 ]; then
 		${_ECHO_ERROR_} "${__FN_NAME__}: provided IPv6 ${__IPv6__} has more than 8 sub-blocks! Please check your IPv6."
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -883,7 +854,6 @@ ipv6_decompress()
 	# If both BEFORE and AFTER are the same, there is no compression
 	if [ "${__IPv6_FRONT_SUBBLOCKS__}" = "${__IPv6_REAR_SUBBLOCKS__}" ]; then
 		# Return uncompressed IPv6 with compressed leading 0s
-# 		__ipv6_exit__ "${__RETURN_VAR__}" "${__IPv6__}"
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}="${__IPv6__}"
 		else
@@ -897,7 +867,6 @@ ipv6_decompress()
 	# If in __IPv6_REAR_SUBBLOCKS__ we find again ::, then there is a double compression in IPv6 and we have to stop processing it. This is an invalid format
 	if [ "${__IPv6_REAR_SUBBLOCKS__}" != "${__IPv6_REAR_SUBBLOCKS__#*::}" ]; then
 		${_ECHO_ERROR_} "${__FN_NAME__}: provided string ${__IPv6__} contains multiple compression delimiters \"::\". Please check your IPv6."
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -908,7 +877,6 @@ ipv6_decompress()
 	# Let's calculate how many groups of 0s we need to add to our IPv6.
 	if ! __get_number_of_el_in_list "__IPv6_FRONT_SUBBLOCKS__" ":" "__IPv6_BEFORE_TOTAL_SUBBLOCKS__"; then
 		${_ECHO_ERROR_} "${__FN_NAME__}: an error occured when we tried to count number of sub-blocks before compression!"
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -918,7 +886,6 @@ ipv6_decompress()
 
 	if ! __get_number_of_el_in_list "__IPv6_REAR_SUBBLOCKS__" ":" "__IPv6_AFTER_TOTAL_SUBBLOCKS__"; then
 		${_ECHO_ERROR_} "${__FN_NAME__}: an error occured when we tried to count number of sub-blocks after compression!"
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -980,7 +947,6 @@ ipv6_decompress()
 
 	${_ECHO_DEBUG_3_} "${__FN_NAME__}: Computed IPv6: ${__newIPv6__}"
 	# Return uncompressed IPv6 with compressed leading 0s
-# 	__ipv6_exit__ "${__RETURN_VAR__}" "${__newIPv6__}"
 	if [ -n "${__RETURN_VAR__}" ]; then
 		eval ${__RETURN_VAR__}="${__newIPv6__}"
 	else
@@ -1030,7 +996,6 @@ ipv6_leading_zero_compression()
 	ipv6_check "${__IPv6__}"
 	__RET__=$?
 	if [ ${__RET__} -gt 0 ]; then
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -1061,7 +1026,6 @@ ipv6_leading_zero_compression()
 
 	if [ "${__IPv6_FRONT_SUBBLOCKS__}" = "${__IPv6_REAR_SUBBLOCKS__}" ]; then
 		# Return zero leading removed IPv6
-# 		__ipv6_exit__ "${__RETURN_VAR__}" "${__newIPv6__}"
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}="${__newIPv6__}"
 		else
@@ -1086,7 +1050,6 @@ ipv6_leading_zero_compression()
 	done
 
 	# Return zero leading removed IPv6
-# 	__ipv6_exit__ "${__RETURN_VAR__}" "${__newIPv6__}"
 	if [ -n "${__RETURN_VAR__}" ]; then
 		eval ${__RETURN_VAR__}="${__newIPv6__}"
 	else
@@ -1163,7 +1126,6 @@ ipv6_first_subnet_address()
 	ipv6_check "${__IPv6__}"
 	__RET__=$?
 	if [ ${__RET__} -gt 0 ]; then
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -1185,7 +1147,6 @@ ipv6_first_subnet_address()
 	case ${__IPv6_PREFIX__} in
 		*[!0-9]*)
 			${_ECHO_ERROR_} "${__FN_NAME__}: Invalid IPv6 prefix ${__IPv6_PREFIX__}! IPv6 prefix must be an integer number between 1 and 128!"
-# 			__ipv6_exit__ "${__RETURN_VAR__}" ""
 			if [ -n "${__RETURN_VAR__}" ]; then
 				eval ${__RETURN_VAR__}=""
 			fi
@@ -1196,7 +1157,6 @@ ipv6_first_subnet_address()
 
 	if [ ${__IPv6_PREFIX__} -lt 1 -o ${__IPv6_PREFIX__} -gt 128 ]; then
 		${_ECHO_ERROR_} "${__FN_NAME__}: Invalid IPv6 prefix ${__IPv6_PREFIX__}! Prefix must be between 1 and 128! Please correct the IPv6 string!"
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -1208,7 +1168,6 @@ ipv6_first_subnet_address()
 	__newIPv6__=$(ipv6_decompress "${__IPv6__}")
 	__RET__=$?
 	if [ ${__RET__} -ne 0 ]; then
-# 		__ipv6_exit__ "${__RETURN_VAR__}" ""
 		if [ -n "${__RETURN_VAR__}" ]; then
 			eval ${__RETURN_VAR__}=""
 		fi
@@ -1267,7 +1226,6 @@ ipv6_first_subnet_address()
 	ipv6_check_skip_reset
 
 	# Return zero leading removed IPv6
-# 	__ipv6_exit__ "${__RETURN_VAR__}" "${__IPv6__}"
 	if [ -n "${__RETURN_VAR__}" ]; then
 		eval ${__RETURN_VAR__}="${__IPv6__}"
 	else
