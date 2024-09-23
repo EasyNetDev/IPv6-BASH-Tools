@@ -21,46 +21,179 @@
 #
 # _echo_* functions can be override using _ECHO_* variable to point to another function
 #
+# If __DEBUG__ is used, some debug information will be showen for troubleshoot. There are 5 levels of debugging. Level 5 enables DASH/SHELL tracing.
+# _echo_* functions can be override using _ECHO_* variable to point to another function
+#
+# To disable warnings to be displayed, set __SHOW_WARNINGS__=0
+# To disable errors to be displayed, set __SHOW_ERRORS__=0
+#
+#
+# This script can be used for free.
+#
+# Copyright (R) EasyNet Consuling SRL, Romania
+# https://easynet.dev/
+# https://github.com/EasyNetDev
+#
 
-if [[ -z "${_DEBUG_}" ]]; then
-	_DEBUG_=0
+unset __OLD_IFS__
+
+if [[ -z "${__SHOW_INFO__}" ]]; then
+	__SHOW_INFO__=1
 else
-	_DEBUG_=1
+	# Check if __SHOW_WARNINGS_ is an integer. Otherwise set to 1
+	case ${__SHOW_INFO__} in
+		*[!0-9]*)
+			__SHOW_INFO__=1
+		;;
+	esac
+	if [[ ${__SHOW_INFO__} -gt 1 ]]; then
+		# Enable script info to be displayed
+		__SHOW_INFO__=1
+	fi
 fi
 
-if [[ -z "${_ECHO_INFO}" ]]; then
-_echo_info()
+if [[ -z "${__SHOW_WARNINGS__}" ]]; then
+	__SHOW_WARNINGS__=1
+else
+	# Check if __SHOW_WARNINGS_ is an integer. Otherwise set to 1
+	case ${__SHOW_WARNINGS__} in
+		*[!0-9]*)
+			__SHOW_WARNINGS__=1
+		;;
+	esac
+	if [[ ${__SHOW_WARNINGS__} -gt 1 ]]; then
+		# Enable script warnings to be displayed
+		__SHOW_WARNINGS__=1
+	fi
+fi
+
+if [[ -z "${__SHOW_ERRORS__}" ]]; then
+	__SHOW_ERRORS__=1
+else
+	# Check if __SHOW_ERRORS__ is an integer. Otherwise set to 1
+	case ${__SHOW_ERRORS__} in
+		*[!0-9]*)
+			__SHOW_ERRORS__=1
+		;;
+	esac
+	if [[ ${__SHOW_ERRORS__} -gt 1 ]]; then
+		# Enable script errors to be displayed
+		__SHOW_ERRORS__=1
+	fi
+fi
+
+if [[ -z "${__DEBUG__}" ]]; then
+	__DEBUG__=0
+else
+	# Check if __DEBUG__ is an integer. Otherwise set to 1
+	case ${__DEBUG__} in
+		*[!0-9]*)
+			__DEBUG__=1
+		;;
+	esac
+	if [[ ${__DEBUG__} -ge 5 ]]; then
+		# Enable DASH script debugging
+		set -x
+	fi
+fi
+
+if [[ -z "${_ECHO_INFO_}" ]]; then
+_echo_info_()
 {
-	echo "INFO: $@" > /dev/stderr
+	if [[ ${__SHOW_INFO__} -eq 1 ]]; then
+		echo "INFO: $@" > /dev/stderr
+	fi
 }
-_ECHO_INFO=_echo_info
+_ECHO_INFO_=_echo_info_
 fi
 
-if [[ -z "${_ECHO_WARNING}" ]]; then
-_echo_warning()
+if [[ -z "${_ECHO_WARNING_}" ]]; then
+_echo_warning_()
 {
-	echo "WARNING: $@" > /dev/stderr
+	if [[ ${__SHOW_WARNING__} -eq 1 ]]; then
+		echo "WARNING: $@" > /dev/stderr
+	fi
 }
-_ECHO_WARNING=_echo_warning
+_ECHO_WARNING_=_echo_warning_
 fi
 
-if [[ -z "${_ECHO_DEBUG}" ]]; then
-_echo_debug()
+# DEBUG level 1
+if [[ -z "${_ECHO_DEBUG_1_}" ]]; then
+_echo_debug_1_()
 {
-	if [[ ${_DEBUG_} -eq 1 ]]; then
+	if [[ ${__DEBUG__} -ge 1 ]]; then
 		echo "DEBUG: $@" > /dev/stderr
 	fi
 }
-_ECHO_DEBUG=_echo_debug
+_ECHO_DEBUG_1_=_echo_debug_1_
 fi
 
-if [[ -z "${_ECHO_ERROR}" ]]; then
-_echo_error()
+# DEBUG level 2
+if [[ -z "${_ECHO_DEBUG_2_}" ]]; then
+_echo_debug_2_()
 {
-	echo "ERROR: $@" > /dev/stderr
+	if [[ "${__DEBUG__}" -ge 2 ]]; then
+		echo "DEBUG: $@" > /dev/stderr
+	fi
 }
-_ECHO_ERROR=_echo_error
+_ECHO_DEBUG_2_=_echo_debug_2_
 fi
+
+# DEBUG level 3
+if [[ -z "${_ECHO_DEBUG_3_}" ]]; then
+_echo_debug_3_()
+{
+	if [[ "${__DEBUG__}" -ge 3 ]]; then
+		echo "DEBUG: $@" > /dev/stderr
+	fi
+}
+_ECHO_DEBUG_3_=_echo_debug_3_
+fi
+
+# DEBUG level 4
+if [[ -z "${_ECHO_DEBUG_4_}" ]]; then
+_echo_debug_4_()
+{
+	if [[ "${__DEBUG__}" -ge 4 ]]; then
+		echo "DEBUG: $@" > /dev/stderr
+	fi
+}
+_ECHO_DEBUG_4_=_echo_debug_4_
+fi
+
+if [[ -z "${_ECHO_ERROR_}" ]]; then
+_echo_error_()
+{
+	if [[ ${__SHOW_ERRORS__} -eq 1 ]]; then
+		echo "ERROR: $@" > /dev/stderr
+	fi
+}
+_ECHO_ERROR_=_echo_error_
+fi
+
+__set_IFS() {
+	# Set IFS to argument $1
+	unset IFS
+	IFS=${1}
+}
+
+__save_IFS() {
+	# Save current IFS to be restored by __restore_IFS
+	__OLD_IFS__=${IFS}
+}
+
+__restore_IFS() {
+	# Restore the previous IFS only if __OLD_IFS__ was saved previously
+	if [ -n "${__OLD_IFS__}" ]; then
+		IFS=${__OLD_IFS__}
+		unset __OLD_IFS__
+	fi
+}
+
+__default_IFS() {
+	unset IFS
+	IFS=$' \t\n'
+}
 
 ipv6_check()
 {
@@ -74,7 +207,6 @@ ipv6_check()
 	#
 
 	local IDX
-	local OLD_IFS
 
 	local IPv6="$1"
 
@@ -87,8 +219,8 @@ ipv6_check()
 	local tmpIPv6="$IPv6"
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	OLD_IFS=${IFS}
-	IFS=$' \t\n'
+	__save_IFS
+	__default_IFS
 
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<40; IDX++)); do
@@ -102,8 +234,7 @@ ipv6_check()
 		if [[ "${tmpIPv6:0:2}" == "::" ]]; then
 			((IPv6_COMPRESS_SUBBLOCK++))
 			if [[ ${IPv6_COMPRESS_SUBBLOCK} -gt 1 ]]; then
-				# Restore previous IFS
-				IFS=${OLD_IFS}
+				__restore_IFS
 				return 1
 				break
 			fi
@@ -122,8 +253,7 @@ ipv6_check()
 		SUBBLOCK_LEN=${#SUBBLOCK}
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			# Restore previous IFS
-			IFS=${OLD_IFS}
+			__restore_IFS
 			return 1
 			break
 		fi
@@ -132,31 +262,27 @@ ipv6_check()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${_ECHO_DEBUG_1_} "new sub-string: ${tmpIPv6}"
 
 		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
 	done
 
 	if [[ ${#IPv6_SUBBLOCKS[@]} -gt 8 ]]; then
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		__restore_IFS
 		return 1
 	fi
 	# 8 sub-blocks with compression is an invalid IPv6 format
 	if [[ ${IPv6_COMPRESS_SUBBLOCK} -ne 0 && ${IPv6_SUBBLOCKS} -eq 8 ]]; then
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		__restore_IFS
 		return 1
 	fi
 	# Less than 8 sub-blocks without compression is an invalid IPv6 format.
 	if [[ ${IPv6_COMPRESS_SUBBLOCK} -eq 0 && ${IPv6_SUBBLOCKS} -lt 8 ]]; then
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		__restore_IFS
 		return 1
 	fi
 
-	# Restore previous IFS
-	IFS=${OLD_IFS}
+	__restore_IFS
 	return 0
 }
 
@@ -186,7 +312,6 @@ ipv6_compression()
 	local IPv6="$1"
 
 	local IDX
-	local OLD_IFS
 
 	local IPv6_SUBBLOCK=( )
 
@@ -206,8 +331,8 @@ ipv6_compression()
 	local tmpIPv6="$IPv6"
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	OLD_IFS=${IFS}
-	IFS=$' \t\n'
+	__save_IFS
+	__default_IFS
 
 	# Using substrigs. Could be much faster and less complex.
 	# In case we see ::, the address is already compressed. Just retur i
@@ -221,7 +346,7 @@ ipv6_compression()
 		break
 	fi
 
-	#${_ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+	#${_ECHO_DEBUG_1_} "IPv6 ${tmpIPv6}"
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<8; IDX++)); do
 
@@ -230,9 +355,8 @@ ipv6_compression()
 
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
-			# Restore previous IFS
-			IFS=${OLD_IFS}
+			${_ECHO_ERROR_} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			__restore_IFS
 			return 1
 		fi
 		IPv6_SUBBLOCK+=( $(printf "0x%x" "0x${SUBBLOCK}") )
@@ -240,7 +364,7 @@ ipv6_compression()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:((${SUBBLOCK_LEN}+1))}
-		#${_ECHO_DEBUG} "IPv6: ${tmpIPv6}"
+		#${_ECHO_DEBUG_1_} "IPv6: ${tmpIPv6}"
 
 		((SUBBLOCK_START=${SUBBLOCK_LEN}+1))
 		if [[ -z "$tmpIPv6" ]]; then
@@ -250,14 +374,13 @@ ipv6_compression()
 
 	# Let's check if we have 8 sub-blocks. In case nofirstt, the string is not a valid IPv6.
 	if [[ $IDX -lt 7 ]]; then
-		${_ECHO_ERROR} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
-		${_ECHO_ERROR} "provid only uncompressed IPv6 for this tool."
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		${_ECHO_ERROR_} "provided string ${IPv6} doesn't have 8 sub-blocks to match IPv6 format!"
+		${_ECHO_ERROR_} "provid only uncompressed IPv6 for this tool."
+		__restore_IFS
 		return 1
 	fi
 
-	#${_ECHO_DEBUG} "Total groups: ${!IPv6_SUBBLOCK[@]}"
+	#${_ECHO_DEBUG_1_} "Total groups: ${!IPv6_SUBBLOCK[@]}"
 
 	# Count each continuous groups of 0s blocks. Store the start and end of this group in IPv6_CURRENT_GROUP_*
 	for IDX in ${!IPv6_SUBBLOCK[@]}; do
@@ -296,8 +419,8 @@ ipv6_compression()
 		fi
 	done
 
-	#${_ECHO_DEBUG} "Longest 0s group is located between: ${IPv6_LONGEST_0s_GROUP[@]}"
-	#${_ECHO_DEBUG} "Compute compressed IPv6.."
+	#${_ECHO_DEBUG_1_} "Longest 0s group is located between: ${IPv6_LONGEST_0s_GROUP[@]}"
+	#${_ECHO_DEBUG_1_} "Compute compressed IPv6.."
 
 	# Let's build the new format of IPv6 using IPv6_LONGEST_0s_START and IPv6_LONGEST_0s_END to compact the IPv6
 	IPv6=""
@@ -322,9 +445,7 @@ ipv6_compression()
 		eval ${2}="${IPv6}"
 	fi
 
-	# Restore previous IFS
-	IFS=${OLD_IFS}
-
+	__restore_IFS
 	return 0
 }
 
@@ -345,7 +466,6 @@ ipv6_uncompress()
 	#   In case argument $2 is missing, print the result to output.
 
 	local IDX
-	local OLD_IFS
 
 	local IPv6="$1"
 
@@ -365,10 +485,10 @@ ipv6_uncompress()
 
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	OLD_IFS=${IFS}
-	IFS=$' \t\n'
+	__save_IFS
+	__default_IFS
 
-	#${_ECHO_DEBUG} "IPv6 ${tmpIPv6}"
+	#${_ECHO_DEBUG_1_} "IPv6 ${tmpIPv6}"
 
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<40; IDX++)); do
@@ -382,9 +502,8 @@ ipv6_uncompress()
 		if [[ "${tmpIPv6:0:2}" == "::" ]]; then
 			((IPv6_COMPRESS_SUBBLOCK++))
 			if [[ ${IPv6_COMPRESS_SUBBLOCK} -gt 1 ]]; then
-				{ECHO_ERROR} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
-				# Restore previous IFS
-				IFS=${OLD_IFS}
+				${_ECHO_ERROR_} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
+				__restore_IFS
 				return 1
 			fi
 			# strip this :: delimiter and continue with the search
@@ -402,9 +521,8 @@ ipv6_uncompress()
 		SUBBLOCK_LEN=${#SUBBLOCK}
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
-			# Restore previous IFS
-			IFS=${OLD_IFS}
+			${_ECHO_ERROR_} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			__restore_IFS
 			return 1
 		fi
 
@@ -416,7 +534,7 @@ ipv6_uncompress()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${_ECHO_DEBUG_1_} "new sub-string: ${tmpIPv6}"
 
 	done
 
@@ -425,30 +543,27 @@ ipv6_uncompress()
 	# Post-checks:
 	# More that 8 sub-blocks is an invalid IPv6 format
 	if [[ ${IPv6_TOTAL_SUBBLOCKS} -gt 8 ]]; then
-		${_ECHO_ERROR} "provided string ${IPv6} has more than 8 sub-blocks! This is an invalid IPv6 format! Please check the IPv6 format!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		${_ECHO_ERROR_} "provided string ${IPv6} has more than 8 sub-blocks! This is an invalid IPv6 format! Please check the IPv6 format!"
+		__restore_IFS
 		return 1
 	fi
 	# 8 sub-blocks with compression is an invalid IPv6 format
 	if [[ ${IPv6_COMPRESS_SUBBLOCK} -ne 0 && ${IPv6_TOTAL_SUBBLOCKS} -eq 8 ]]; then
-		${_ECHO_ERROR} "provided string ${IPv6} 8 sub-blocks and compression! This is an invalid IPv6 format! Please check the IPv6 format!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		${_ECHO_ERROR_} "provided string ${IPv6} 8 sub-blocks and compression! This is an invalid IPv6 format! Please check the IPv6 format!"
+		__restore_IFS
 		return 1
 	fi
 	# Less than 8 sub-blocks without compression is an invalid IPv6 format.
 	if [[ ! ${IPv6_COMPRESS_SUBBLOCK} && ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
-		${_ECHO_ERROR} "provided string ${IPv6} has less than 8 sub-blocks without compression! This is an invalid IPv6 format! Please check the IPv6 format!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		${_ECHO_ERROR_} "provided string ${IPv6} has less than 8 sub-blocks without compression! This is an invalid IPv6 format! Please check the IPv6 format!"
+		__restore_IFS
 		return 1
 	fi
 
 	if [[ ${IPv6_TOTAL_SUBBLOCKS} -lt 8 ]]; then
 		# Walk through the IPv6 and check where is the compression.
 		((IPv6_ADD_0s=8-${IPv6_TOTAL_SUBBLOCKS}))
-		#${_ECHO_DEBUG} "We must add ${IPv6_ADD_0s} more of groups of 0s."
+		#${_ECHO_DEBUG_1_} "We must add ${IPv6_ADD_0s} more of groups of 0s."
 
 		# Build first part of the IPv6
 		IPv6=""
@@ -477,9 +592,7 @@ ipv6_uncompress()
 		eval ${2}="${IPv6}"
 	fi
 
-	# Restore previous IFS
-	IFS=${OLD_IFS}
-
+	__restore_IFS
 	return 0
 }
 
@@ -500,7 +613,6 @@ ipv6_leading_zero_compression()
 	#   In case argument $2 is missing, print the result to output.
 
 	local IDX
-	local OLD_IFS
 
 	local IPv6="$1"
 	local IPv6_COMPRESS_SUBBLOCK=0
@@ -513,8 +625,8 @@ ipv6_leading_zero_compression()
 	local tmpIPv6="$IPv6"
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	OLD_IFS=${IFS}
-	IFS=$' \t\n'
+	__save_IFS
+	__default_IFS
 
 	# Loop until we don't have any sub-blocks.
 	for ((IDX=0; IDX<40; IDX++)); do
@@ -528,9 +640,8 @@ ipv6_leading_zero_compression()
 		if [[ "${tmpIPv6:0:2}" == "::" ]]; then
 			((IPv6_COMPRESS_SUBBLOCK++))
 			if [[ ${IPv6_COMPRESS_SUBBLOCK} -gt 1 ]]; then
-				{ECHO_ERROR} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
-				# Restore previous IFS
-				IFS=${OLD_IFS}
+				${_ECHO_ERROR_} "privided string ${IPv6} contains multiple compression delimiters \"::\". Please check your IPv6."
+				__restore_IFS
 				return 1
 			fi
 			# strip this :: delimiter and continue with the search
@@ -548,9 +659,8 @@ ipv6_leading_zero_compression()
 		SUBBLOCK_LEN=${#SUBBLOCK}
 		# Check if the sub-block contains only HEX characters
 		if ! [[ "${SUBBLOCK}" =~ ^[0-9a-fA-F]+$ ]]; then
-			${_ECHO_ERROR} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
-			# Restore previous IFS
-			IFS=${OLD_IFS}
+			${_ECHO_ERROR_} "provided string ${IPv6} contains characters which are not valid HEXA value! Allowed characters are: 0-9, a-f and A-F only!"
+			__restore_IFS
 			return 1
 		fi
 
@@ -562,7 +672,7 @@ ipv6_leading_zero_compression()
 
 		# Strip the sub-block in front of the IPv6
 		tmpIPv6=${tmpIPv6:${SUBBLOCK_LEN}}
-		#${_ECHO_DEBUG} "new sub-string: ${tmpIPv6}"
+		#${_ECHO_DEBUG_1_} "new sub-string: ${tmpIPv6}"
 
 	done
 
@@ -589,9 +699,7 @@ ipv6_leading_zero_compression()
 		eval ${2}="${IPv6}"
 	fi
 
-	# Restore previous IFS
-	IFS=${OLD_IFS}
-
+	__restore_IFS
 	return 0
 }
 
@@ -634,8 +742,6 @@ ipv6_first_subnet_address()
 	local SPLIT_PREFIX_1
 	local SPLIT_PREFIX_2
 
-	local OLD_IFS
-
 	# Prefix to mask mapping using index in array
 	local PREFIX_MAP=( 0x0000 0x8000 0xC000 0xE000 0xF000 0xF800 0xFC00 0xFE00 0xFF00 0xFF80 0xFFC0 0xFFE0 0xFFF0 0xFFF8 0xFFFC 0xFFFE )
 
@@ -645,8 +751,8 @@ ipv6_first_subnet_address()
 	local newValue
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	OLD_IFS=${IFS}
-	IFS=$' \t\n'
+	__save_IFS
+	__default_IFS
 
 	IPv6_PREFIX=${IPv6#*/}
 	IPv6=${IPv6%/*}
@@ -659,16 +765,14 @@ ipv6_first_subnet_address()
 	fi
 
 	if [[ ! "${IPv6_PREFIX}" =~ ^[0-9]+$ ]]; then
-		${_ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Please correct the IPv6 string!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		${_ECHO_ERROR_} "Invalid IPv6 prefix ${IPv6_PREFIX}! Please correct the IPv6 string!"
+		__restore_IFS
 		return 1
 	fi
 
 	if [[ ${IPv6_PREFIX} -lt 1 || ${IPv6_PREFIX} -gt 128 ]]; then
-		${_ECHO_ERROR} "Invalid IPv6 prefix ${IPv6_PREFIX}! Prefix must be between 1 and 128! Please correct the IPv6 string!"
-		# Restore previous IFS
-		IFS=${OLD_IFS}
+		${_ECHO_ERROR_} "Invalid IPv6 prefix ${IPv6_PREFIX}! Prefix must be between 1 and 128! Please correct the IPv6 string!"
+		__restore_IFS
 		return 1
 	fi
 
@@ -705,9 +809,7 @@ ipv6_first_subnet_address()
 		eval ${2}="${IPv6}"
 	fi
 
-	# Restore previous IFS
-	IFS=${OLD_IFS}
-
+	__restore_IFS
 	return 0
 }
 
@@ -733,8 +835,8 @@ ipv6_last_subnet_address()
 	local OLD_IFS
 
 	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	OLD_IFS=${IFS}
-	IFS=$' \t\n'
+	__save_IFS
+	__default_IFS
 
 	:
 

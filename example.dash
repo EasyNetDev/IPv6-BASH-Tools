@@ -1,7 +1,87 @@
 #!/bin/sh
 
-# DASH Tools to manipulate IPv6 addresses
+# DASH IPv6 lib to manipulate IPv6 addresses
 # Example script
+#
+# Copyright (R) EasyNet Consuling SRL, Romania
+# https://github.com/EasyNetDev
+#
+
+# __SHOW_ERRORS__=0
+# __SHOW_INFO__=0
+# __SHOW_WARNINGS__=0
+
+__START_TIME__=""
+__END_TIME__=""
+
+__SHOW_EXECUTION_TIME__=0
+
+__START_MEASURE__()
+{
+	__START_TIME__=$(date +"%s.%N")
+}
+
+__END_MEASURE__()
+{
+	__END_TIME__=$(date +"%s.%N")
+}
+
+__EXECUTION_TIME__()
+{
+	local _START_NANO_SEC_
+	local _END_NANO_SEC_
+	local _START_SEC_
+	local _END_SEC_
+
+	local _EXEC_NANO_=0
+	local _EXEC_SEC_=0
+
+	local _EXEC_TIME_=""
+
+	if [ ${__SHOW_EXECUTION_TIME__} != 1 ]; then
+		return 0
+	fi
+
+	_START_SEC_=${__START_TIME__%.*}
+	_START_NANO_SEC_=${__START_TIME__#*.}
+	_END_SEC_=${__END_TIME__%.*}
+	_END_NANO_SEC_=${__END_TIME__#*.}
+
+	#printf "1. Start sec: %s, Start nanosec: %s, Stop sec: %s, Stop nano: %s\n" ${_START_SEC_} ${_START_NANO_SEC_} ${_END_SEC_} ${_END_NANO_SEC_}
+
+	_START_NANO_SEC_=$(echo ${_START_NANO_SEC_} | sed "s/^0\+//")
+	_END_NANO_SEC_=$(echo ${_END_NANO_SEC_} | sed "s/^0\+//")
+
+	#printf "2. Start sec: %s, Start nanosec: %s, Stop sec: %s, Stop nano:%s\n" ${_START_SEC_} ${_START_NANO_SEC_} ${_END_SEC_} ${_END_NANO_SEC_}
+
+	if [ ${_END_SEC_} -eq ${_START_SEC_} ]; then
+		# This case implies end seconds equal start seconds, we will have the end nanosec higher than start nanosec.
+		# We calculate just the difference between end nanosec and start nanosec.
+		_EXEC_NANO_=$((${_END_NANO_SEC_}-${_START_NANO_SEC_}))
+		_EXEC_SEC_=0
+	else
+		# This case implies end seconds greater than start seconds
+		# Here we have few cases:
+		# 1. End nanosec higher or equal than start nanosec. Just calculate exec_sec = end_sec - start_sec and exec_nano = end_nanosec - start_nanosec.
+		# 2. End nanosec lower than start nanosec. That means we change to next second but in reality we will have only 1000000000-start_nanosec+end_nanosec which is less than 1 second. We have to calculate the exec_seconds by substracting 1 second.
+
+		if [ ${_END_NANO_SEC_} -ge ${_START_NANO_SEC_} ]; then
+			_EXEC_NANO_=$((${_END_NANO_SEC_}-${_START_NANO_SEC_}))
+			_EXEC_SEC_=$((${_END_SEC_}-${_START_SEC_}))
+		else
+			_EXEC_NANO_=$((1000000000-${_START_NANO_SEC_}+${_END_NANO_SEC_}))
+			_EXEC_SEC_=$((${_END_SEC_}-${_START_SEC_}-1))
+		fi
+	fi
+
+	_EXEC_NANO_=$((${_EXEC_NANO_}/1000))
+	_EXEC_TIME_=$(printf "%d.%06d" ${_EXEC_SEC_} ${_EXEC_NANO_})
+
+	#printf "3. Start sec: %s, Start nanosec: %s, Stop sec: %s, Stop nano:%s\n" ${_START_SEC_} ${_START_NANO_SEC_} ${_END_SEC_} ${_END_NANO_SEC_}
+	#printf "Exec: %s / %s\n" ${_EXEC_SEC_} ${_EXEC_NANO_}
+
+	printf "Execution time: %0.06fs\n" ${_EXEC_TIME_}
+}
 
 SCRIPT_PATH=$(readlink -f $0)
 SCRIPT_PATH=$(dirname ${SCRIPT_PATH})
@@ -15,94 +95,126 @@ else
 	exit 1
 fi
 
-#echo "1. Check if string is a valid IPv6:"
-#for IPv6_TEST in "1abc:02ab::" "1abc::02ab:003a" "1abc::02ab::003a" "1zas:02ab:003a:0004:5abc::" "abzc::" "1:2:3:4:5:6:7:8:9"; do
-#	ipv6_check "${IPv6_TEST}"
-#	RET=$?
-#	if [ $RET -eq 0 ]; then
-#		echo "    String ${IPv6_TEST} is a valid IPv6"
-#	else
-#		case $RET in
-#			1)
-#				echo "    String ${IPv6_TEST} is an invalid IPv6 format. Found more than one compression delimiter \"::\"!"
-#			;;
-#			2)
-#				echo "    String ${IPv6_TEST} is an invalid IPv6 format. Found more than 8 sub-blocks!"
-#			;;
-#			3)
-#				echo "    String ${IPv6_TEST} is an invalid IPv6 format. Found invalid hexa characters!"
-#			;;
-#			4)
-#				echo "    String ${IPv6_TEST} is an invalid IPv6 format. Found a sub-block with a value greater than 0xFFFF!"
-#			;;
-#			*)
-#				echo "    String ${IPv6_TEST} is an invalid IPv6 format. Unknown error."
-#			;;
-#		esac
-#	fi
-#done
-
-# echo
-# echo "2. IPv6 uncompress tool:"
-# echo "  a. Test IPv6 with compression :: at the end of address"
-# #IPv6_TEST="1abc:02ab:003a:0004:5abc::"
-# #IPv6_TEST="1abc:02ab::"
-# #IPv6_TEST="::"
-# #IPv6_TEST="1abc:02ab:003a:0004:5abc:6abc:7abc:8abc:9abc"
-# for IPv6_TEST in "1abc:02ab::" "1abc:02ab:003a::" "1abc:02ab:003a:0004::" "1abc:02ab:003a:0004:5abc::" "1abc:02ab:003a:0004:5abc:6abc::" "1abc:02ab:003a:0004:5abc:6abc:7abc::" "1abc:02ab:003a:0004:5abc:6abc:7abc:8abc"; do
-# 	ipv6_uncompress "${IPv6_TEST}" "IPv6_TUN_6RD_EXPAND"
-# 	echo "    Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_EXPAND}"
-# done
-# #exit 0
-#
-# # Check case with :: inside of IPv6
-# echo
-# echo "  b. Test case of IPv6 with compression :: inside of the address"
-# #IPv6_TEST="1abc:02ab:003a:0004:5abc::"
-# for IPv6_TEST in "1abc::2abc" "1abc::02ab:003a" "1abc:02ab::003a:4abc" "1abc:02ab::003a:4abc:5abc" "1abc:02ab:003a::4abc:5abc:6abc" "1abc:02ab:003a:0004::5abc:6abc:7abc"; do
-# 	ipv6_uncompress "${IPv6_TEST}" "IPv6_TUN_6RD_EXPAND"
-# 	echo "    Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_EXPAND}"
-# done
-# #exit 0
-#
-# # Check case with :: at the begining of IPv6
-# echo
-# echo "  c. Test case of IPv6 with compression :: at begining of the address"
-# #IPv6_TEST="1abc:02ab:003a:0004:5abc::"
-# for IPv6_TEST in "::" "::1" "::1abc:2abc" "::1abc:02ab:003a" "::1abc:02ab:003a:4abc" "::1abc:02ab:003a:4abc:5abc" "::1abc:02ab:003a:4abc:5abc:6abc" "::1abc:02ab:003a:0004:5abc:6abc:7abc"; do
-# 	ipv6_uncompress "${IPv6_TEST}" "IPv6_TUN_6RD_EXPAND"
-# 	echo "    Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_EXPAND}"
-# done
-# #exit 0
-#
-# echo
-# echo "3. IPv6 compress tool:"
-# #IPv6_TEST="1abc:2abc:0000:0000:0000:0000:0000:aaaa"
-# for IPv6_TEST in "0000:0000:0000:0000:0000:0000:0000:0000" "1abc:2abc:0000:0000:0000:0000:0000:0000" "1abc:0000:0000:0000:0000:2abc:0000:0000" "1abc:0000:0000:0000:2abc:0000:0000:0000" "1abc:0000:0000:2abc:0000:0000:0000:0000"; do
-# 	if ! ipv6_compression "${IPv6_TEST}" "IPv6_TUN_6RD_COMPRESS"; then
-# 		echo "  ipv6_compression for ${IPv6_TEST} failed."
-# 	else
-# 		echo "  Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_COMPRESS}"
-# 	fi
-# done
-# #exit 0
-#
-# echo
-# echo "4. IPv6 0 leading compression tool:"
-# for IPv6_TEST in "0000:0000:0000:0000:0000:0000:0000:0000" "1abc:2abc:0000:0000:0000:0000:0000:0000" "1abc:0000:0000:0000:0000:2abc:0000:0000" "1abc:000::0000:2abc:0000:0000" "1abc:0000:0000:0000:2abc:0000:0000:0000" "1abc:0000:0000:2abc:0000:0000:0000:0000"; do
-# 	if ! ipv6_leading_zero_compression "${IPv6_TEST}" "IPv6_TUN_6RD_ZERO_LEADING"; then
-# 		echo "  ipv6_leading_zero_compression for ${IPv6_TEST} failed."
-# 	else
-# 		echo "  Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_ZERO_LEADING}"
-# 	fi
-# done
+echo "1. Check if string is a valid IPv6:"
+for IPv6_TEST in "::" "a001::" "::a001" "a001:b002::" "a001:b002:c003::" "a001:b002:c003:d004::" "a001:b002:c003:d004:e005::" "a001:b002:c003:d004:e005:f006::" "a001:b002:c003:d004:e005:f006:a007::" "a001:b002:c003:d004:e005:f006:a007:b008" "1abc:02ab::" "1abc::02ab:003a" "1abc::02ab::003a"  "1zas:02ab:003a:0004:5abc::" "abzc::" "1:2:3:4:5:6:7:8:9" "abcd:::123a:abcd"; do
+	__START_MEASURE__
+	ipv6_check "${IPv6_TEST}"
+	RET=$?
+	__END_MEASURE__
+	if [ $RET -eq 0 ]; then
+		echo "    IPv6 ${IPv6_TEST} has an valid IPv6 format"
+	else
+		printf "    String ${IPv6_TEST} has an invalid IPv6 format. "
+		ipv6_check_errno ${RET}
+	fi
+	__EXECUTION_TIME__
+done
 #exit 0
 
 echo
-echo "5. IPv6 get first address of the subnet:"
-# "1abc::8abc/16" "1abc::8abc/17" "1abc::8abc/18" "1abc::8abc/19" "1abc::8abc/20"  "1abc::8abc/21" "1abc::8abc/22" "1abc::8abc/23" "1abc::8abc/24" "1abc::8abc/25" "1abc::8abc/26" "1abc::8abc/27" "1abc::8abc/28" "1abc::8abc/29" "1abc::8abc/30" "1abc::8abc/31" "1abc::8abc/32"
-for IPv6_TEST in "1abc:2abc:3abc::8abc/28" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/32" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/36" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/42" "1abc:2abc:3abc:4abc:5abc:6abc:7abc:8abc/48" "1abc:2abc::5abc:6abc:7abc:8abc/48" "1abc:2abc::5abc:6abc:7abc:8abc/128"; do
-	ipv6_first_subnet_address "${IPv6_TEST}" "IPv6_FIRST_ADDRESS"
-	echo "  The first IPv6 address ${IPv6_TEST} is ${IPv6_FIRST_ADDRESS}"
+echo "2. IPv6 decompress tool:"
+echo "  a. Test IPv6 decompression for IPv6 with compression :: at the end of address"
+for IPv6_TEST in "1abc:02ab::" "1abc:02ab:003a::" "1abc:02ab:003a:0004::" "1abc:02ab:003a:0004:5abc::" "1abc:02ab:003a:0004:5abc:6abc::" "1abc:02ab:003a:0004:5abc:6abc:7abc::" "1abc:02ab:003a:0004:5abc:6abc:7abc:8abc" "1abc:02ab:003a:0004:5abc:6abc:7abc:8abc:9abc"; do
+	__START_MEASURE__
+	ipv6_decompress "${IPv6_TEST}" "IPv6_TUN_6RD_EXPAND"
+	RET=$?
+	__END_MEASURE__
+	if [ ${RET} -eq 0 ]; then
+		echo "    Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_EXPAND}"
+
+	else
+		printf "    String ${IPv6_TEST} has an invalid IPv6 format. "
+		ipv6_check_errno ${RET}
+	fi
+	__EXECUTION_TIME__
 done
-exit 0
+# exit 0
+
+# Test case with :: inside of IPv6
+echo
+echo "  b. Test case of IPv6 with compression :: inside of the address"
+for IPv6_TEST in "1abc::2abc" "1abc::02ab:003a" "1abc:02ab::003a:4abc" "1abc:02ab::003a:4abc:5abc" "1abc:02ab:003a::4abc:5abc:6abc" "1abc:02ab:003a:0004::5abc:6abc:7abc"; do
+	__START_MEASURE__
+	ipv6_decompress "${IPv6_TEST}" "IPv6_TUN_6RD_EXPAND"
+	RET=$?
+	__END_MEASURE__
+	if [ ${RET} -eq 0 ]; then
+		echo "    Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_EXPAND}"
+	else
+		printf "    String ${IPv6_TEST} has an invalid IPv6 format. "
+		ipv6_check_errno ${RET}
+	fi
+	__EXECUTION_TIME__
+done
+# exit 0
+
+# Test case with :: at the begining of IPv6
+echo
+echo "  c. Test case of IPv6 with compression :: at begining of the address"
+for IPv6_TEST in "::" "::1" "::1abc:2abc" "::1abc:02ab:003a" "::1abc:02ab:003a:4abc" "::1abc:02ab:003a:4abc:5abc" "::1abc:02ab:003a:4abc:5abc:6abc" "::1abc:02ab:003a:0004:5abc:6abc:7abc"; do
+	__START_MEASURE__
+	ipv6_decompress "${IPv6_TEST}" "IPv6_TUN_6RD_EXPAND"
+	RET=$?
+	__END_MEASURE__
+	if [ ${RET} -eq 0 ]; then
+		echo "    Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_EXPAND}"
+	else
+		printf "    String ${IPv6_TEST} has an invalid IPv6 format. "
+		ipv6_check_errno ${RET}
+	fi
+	__EXECUTION_TIME__
+done
+# exit 0
+
+echo
+echo "3. IPv6 compress tool:"
+for IPv6_TEST in "0000:0000:0000:0000:0000:0000:0000:0000" "1abc:2abc:0000:0000:0000:0000:0000:0000" "1abc:0000:0000:0000:0000:2abc:0000:0000" "1abc:0000:0000:0000:2abc:0000:0000:0000" "1abc:0000:0000:2abc:0000:0000:0000:0000"; do
+	__START_MEASURE__
+	ipv6_compress "${IPv6_TEST}" "IPv6_TUN_6RD_COMPRESS"
+	RET=$?
+	__END_MEASURE__
+	if [ ${RET} -eq 0 ]; then
+		echo "  Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_COMPRESS}"
+	else
+		printf "    String ${IPv6_TEST} has an invalid IPv6 format. "
+		ipv6_check_errno ${RET}
+	fi
+	__EXECUTION_TIME__
+done
+# exit 0
+
+echo
+echo "4. IPv6 zero leading compression tool:"
+for IPv6_TEST in "0000:0000:0000:0000:0000:0000:0000:0000" "1abc::0ab2:0cd3:0abc:0000:0000:0000" "1abc:2abc:0000:0000:0000:0000:0000:0000" "1abc:0000:0000:0000:0000:2abc:0000:0000" "1abc:000::0000:2abc:0000:0000" "1abc:0000:0000:0000:2abc:0000:0000:0000" "1abc:0000:0000:2abc:0000:0000:0000:0000"; do
+	__START_MEASURE__
+	ipv6_leading_zero_compression "${IPv6_TEST}" "IPv6_TUN_6RD_ZERO_LEADING"
+	RET=$?
+	__END_MEASURE__
+	if [ ${RET} -eq 0 ]; then
+		echo "  Before ${IPv6_TEST} and after ${IPv6_TUN_6RD_ZERO_LEADING}"
+	else
+		printf "    String ${IPv6_TEST} has an invalid IPv6 format. "
+		ipv6_check_errno ${RET}
+	fi
+	__EXECUTION_TIME__
+done
+# exit 0
+
+echo
+echo "5. IPv6 get first address of the subnet:"
+IPv6_TEST="1abc:2def:ffff:ffff::ffff"
+	for PREFIX in `seq 28 48`; do
+		__START_MEASURE__
+		ipv6_first_subnet_address "${IPv6_TEST}/${PREFIX}" "IPv6_FIRST_ADDRESS"
+		RET=$?
+		__END_MEASURE__
+
+		if [ ${RET} -eq 0 ]; then
+			echo "  The first IPv6 address ${IPv6_TEST}/${PREFIX} is ${IPv6_FIRST_ADDRESS}"
+		else
+			printf "    String ${IPv6_TEST} has an invalid IPv6 format. "
+			ipv6_check_errno ${RET}
+		fi
+		__EXECUTION_TIME__
+	done
+# exit 0
