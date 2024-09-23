@@ -16,9 +16,19 @@
 __START_TIME__="0.0"
 __END_TIME__="0.0"
 
+# By default show the execution time
+case ${__SHOW_EXECUTION_TIME__} in
+	*[!0-9]*|"")
+		__SHOW_EXECUTION_TIME__=1
+	;;
+esac
+if [ ${__SHOW_EXECUTION_TIME__} -ne 0 ]; then
+	__SHOW_EXECUTION_TIME__=1
+fi
+
 __START_MEASURE__()
 {
-	if [ ${__SHOW_EXECUTION_TIME__} != 1 ]; then
+	if [ ${__SHOW_EXECUTION_TIME__} -eq 0 ]; then
 		return 0
 	fi
 	__START_TIME__=$(date +"%s.%N")
@@ -27,7 +37,7 @@ __START_MEASURE__()
 __END_MEASURE__()
 {
 
-	if [ ${__SHOW_EXECUTION_TIME__} != 1 ]; then
+	if [ ${__SHOW_EXECUTION_TIME__} -eq 0 ]; then
 		return 0
 	fi
 	__END_TIME__=$(date +"%s.%N")
@@ -45,7 +55,7 @@ __EXECUTION_TIME__()
 
 	local _EXEC_TIME_=""
 
-	if [ ${__SHOW_EXECUTION_TIME__} != 1 ]; then
+	if [ ${__SHOW_EXECUTION_TIME__} -eq 0 ]; then
 		return 0
 	fi
 
