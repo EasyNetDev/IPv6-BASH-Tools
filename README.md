@@ -60,14 +60,20 @@ Remove leading 0s of IPv6 using these rules:
 ## ipv6_first_subnet_address()
 Returns the first IPv6 address of a prefix. The format must be given like IPv6/PREFIX, where PREFIX is between 1 and 128.
 To simplify the maths, we are using a list which contains 16 types of prefix masks and we will map prefixes from 0 to 15 to this array
+
 The array will contain:
-  0x0000 (0000000000000000b), 0x8000 (1000000000000000b), 0xC000 (1100000000000000b), 0xE000 (1110000000000000b), 0xF000 (1111000000000000b), 0xF800 (1111100000000000b), 0xFC00 (1111110000000000b), 0xFE00 (1111111000000000b), 0xFF00 (1111111100000000b), 0xFF80 (1111111110000000b), 0xFFC0 (1111111111000000b), 0xFFE0 (1111111111100000b), 0xFFF0 (1111111111110000b), 0xFFF8 (1111111111111000b), 0xFFFC (1111111111111100b), 0xFFFE (1111111111111110b)
+
+    0x0000 (0000000000000000b), 0x8000 (1000000000000000b), 0xC000 (1100000000000000b), 0xE000 (1110000000000000b), 0xF000 (1111000000000000b), 0xF800 (1111100000000000b), 0xFC00 (1111110000000000b), 0xFE00 (1111111000000000b), 0xFF00 (1111111100000000b), 0xFF80 (1111111110000000b), 0xFFC0 (1111111111000000b), 0xFFE0 (1111111111100000b), 0xFFF0 (1111111111110000b), 0xFFF8 (1111111111111000b), 0xFFFC (1111111111111100b), 0xFFFE (1111111111111110b)
+
 We are using 16 bits of mask because IPv6 has sub-blocks of 16 bits and will be easy to map each prefix sub-block to each uncompressed IPv6 sub-block.
 
 We will split the prefix in groups of 16 and reminder.
+
 For example:
-	Prefix 28: 28/16 = 1 and reminder 12. We will have only one group of 16 bits which by default will be 0xFFFF and second group will be 12 bits mapped to 0xFFF0 nd the reset 0x0000.
-	Prefix 48: 42/16 = 2 and reminder 10. We will have only two groups of 16 bits which by default will be 0xFFFF and third group will be 10 bits mapped to 0xFFC0 nd the reset 0x0000.
+
+	Prefix 28: 28/16 = 1 and reminder 12. We will have only one group of 16 bits which by default will be 0xFFFF and second group will be 12 bits mapped to 0xFFF0 and the rest 0x0000.
+ 
+	Prefix 48: 42/16 = 2 and reminder 10. We will have only two groups of 16 bits which by default will be 0xFFFF and third group will be 10 bits mapped to 0xFFC0 and the rest 0x0000.
 
 1. Uncompress IPv6 and also is doing ipv6_check.
 2. Walk through the uncompressed sub-blocks IPv6.
