@@ -71,9 +71,11 @@ We will split the prefix in groups of 16 and reminder.
 
 For example:
 
-	Prefix 28: 28/16 = 1 and reminder 12. We will have only one group of 16 bits which by default will be 0xFFFF and second group will be 12 bits mapped to 0xFFF0 and the rest 0x0000.
+	Prefix 28: 28/16 = 1 and reminder 12. We will have only one sub-blocks of 16 bits which by will have a prefix of 0xFFFF, next sub-block will have a prefix of 12 bits mapped to 0xFFF0 and the rest of the sub-blocks up to the 8th will be 0x0000.
  
-	Prefix 48: 42/16 = 2 and reminder 10. We will have only two groups of 16 bits which by default will be 0xFFFF and third group will be 10 bits mapped to 0xFFC0 and the rest 0x0000.
+	Prefix 42: 42/16 = 2 and reminder 10. We will have only two sub-blocks of 16 bits  which by will have a prefix of 0xFFFF, next sub-block will have a prefix of 10 bits mapped to 0xFFC0 and the rest of the sub-blocks up to the 8th will be 0x0000.
+
+	Prefix 48: 48/16 = 3 and reminder 0. We will have only three sub-blocks of 16 bits which by default will be 0xFFFF and the rest of the sub-blocks up to the 8th will be 0x0000.
 
 1. Uncompress IPv6 and also is doing ipv6_check.
 2. Walk through the uncompressed sub-blocks IPv6.
