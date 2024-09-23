@@ -213,8 +213,14 @@ __set_IFS() {
 
 __default_IFS() {
 	unset IFS
-	IFS=" \t
-"
+	# DASH/SHELL is a little bit stupid. If you set
+	#IFS=" \t
+	#"
+	# Then \t will be interpreted as \ and t.
+	# \n is not working also. Printf doesn't add \n in the end of the output, so we have to trick it.
+	# Add a letter in the end and delete it.
+	IFS=$(printf ' \t\nq')
+	IFS=${IFS%q}
 }
 
 __get_number_of_el_in_list()
