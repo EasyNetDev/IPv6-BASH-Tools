@@ -211,6 +211,25 @@ __set_IFS() {
 	IFS=${1}
 }
 
+__set_IFS_newline() {
+	unset IFS
+	# DASH/SHELL is a little bit stupid.
+	# \n is not working. Printf doesn't add \n in the end of the output, so we have to trick it.
+	# Add a letter in the end and delete it.
+	IFS=$(printf '\nq')
+	IFS=${IFS%q}
+}
+
+__set_IFS_space() {
+	unset IFS
+	IFS=$(printf ' ')
+}
+
+__set_IFS_tab() {
+	unset IFS
+	IFS=$(printf '\t')
+}
+
 __default_IFS() {
 	unset IFS
 	# DASH/SHELL is a little bit stupid. If you set
