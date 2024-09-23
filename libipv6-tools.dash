@@ -825,9 +825,6 @@ ipv6_decompress()
 		fi
 	fi
 
-
-	#${_ECHO_DEBUG_1_} "IPv6 ${tmpIPv6}"
-
 	if [ "${__IPv6__}" = "::" ]; then
 		__newIPv6__="0:0:0:0:0:0:0:0"
 		${_ECHO_DEBUG_1_} "${__FN_NAME__}: Found valid IPv6 (${__IPv6__}) Unspecified address."
@@ -920,7 +917,6 @@ ipv6_decompress()
 	for __SUBBLOCK__ in ${__IPv6_REAR_SUBBLOCKS__}; do
 
 		${_ECHO_DEBUG_3_} "${__FN_NAME__}: Subblock: "${__SUBBLOCK__}
-		#${_ECHO_DEBUG_1_} "Subblock len: "${__SUBBLOCK_LEN__}
 
 		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
 
@@ -930,7 +926,6 @@ ipv6_decompress()
 			__newIPv6__=$(printf "%s:%x" "${__newIPv6__}" ${__RESULT__})
 		fi
 	done
-#	__default_IFS
 
 	${_ECHO_DEBUG_3_} "${__FN_NAME__}: Computed IPv6: ${__newIPv6__}"
 	# Return uncompressed IPv6 with compressed leading 0s
@@ -987,10 +982,6 @@ ipv6_leading_zero_compression()
 	__IPv6_REAR_SUBBLOCKS__=${__IPv6__#*::}
 
 	# Let's calculate how many groups of 0s we need to add to our IPv6.
-	# Replace delimiter ":" with spaces
-	#__IPv6_FRONT_SUBBLOCKS__=$(echo ${__IPv6_FRONT_SUBBLOCKS__} | sed "s/:/ /g")
-	#__IPv6_REAR_SUBBLOCKS__=$(echo ${__IPv6_REAR_SUBBLOCKS__} | sed "s/:/ /g")
-
 	__newIPv6__=""
 	__set_IFS ":"
 	for __SUBBLOCK__ in ${__IPv6_FRONT_SUBBLOCKS__}; do
@@ -1174,8 +1165,6 @@ ipv6_first_subnet_address()
 			__newIPv6__="${__newIPv6__}:${__newSUBBLOCK__}"
 		fi
 
-		#${_ECHO_DEBUG_4_} "${__FN_NAME__}: __IDX__=${__IDX__} and __SPLIT_PREFIX_1__=${__SPLIT_PREFIX_1__}"
-		#${_ECHO_DEBUG_4_} "${__FN_NAME__}: __SPLIT_PREFIX_2__=${__SPLIT_PREFIX_2__}"
 		__IDX__=$((__IDX__+=1))
 
 	done
