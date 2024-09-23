@@ -1,4 +1,4 @@
-# IPv6-BASH-Tools and IPv6-DASH-Tools
+# IPv6 DASH/SHELL/BASH Libs
 IPv6 lib for check, compress, uncompress, remove leading 0s and get the first IP address for IPv6 using only Bash or Dash/Shell commands.
 
 This lib is intended to be use in BASH or DASH/SHELL scripts for routers to calculate for exampe SIT6 tunnel addresses.
