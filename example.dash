@@ -11,6 +11,9 @@
 #__SHOW_INFO__=1
 #__SHOW_WARNINGS__=1
 
+# If you don't want to show the execution time, set this to 0
+#__SHOW_EXECUTION_TIME__=1
+
 SCRIPT_PATH=$(readlink -f $0)
 SCRIPT_PATH=$(dirname ${SCRIPT_PATH})
 

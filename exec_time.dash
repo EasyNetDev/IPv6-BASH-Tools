@@ -13,18 +13,23 @@
 # https://github.com/EasyNetDev
 #
 
-__START_TIME__=""
-__END_TIME__=""
-
-__SHOW_EXECUTION_TIME__=0
+__START_TIME__="0.0"
+__END_TIME__="0.0"
 
 __START_MEASURE__()
 {
+	if [ ${__SHOW_EXECUTION_TIME__} != 1 ]; then
+		return 0
+	fi
 	__START_TIME__=$(date +"%s.%N")
 }
 
 __END_MEASURE__()
 {
+
+	if [ ${__SHOW_EXECUTION_TIME__} != 1 ]; then
+		return 0
+	fi
 	__END_TIME__=$(date +"%s.%N")
 }
 
@@ -49,12 +54,8 @@ __EXECUTION_TIME__()
 	_END_SEC_=${__END_TIME__%.*}
 	_END_NANO_SEC_=${__END_TIME__#*.}
 
-	#printf "1. Start sec: %s, Start nanosec: %s, Stop sec: %s, Stop nano: %s\n" ${_START_SEC_} ${_START_NANO_SEC_} ${_END_SEC_} ${_END_NANO_SEC_}
-
 	_START_NANO_SEC_=$(echo ${_START_NANO_SEC_} | sed "s/^0\+//")
 	_END_NANO_SEC_=$(echo ${_END_NANO_SEC_} | sed "s/^0\+//")
-
-	#printf "2. Start sec: %s, Start nanosec: %s, Stop sec: %s, Stop nano:%s\n" ${_START_SEC_} ${_START_NANO_SEC_} ${_END_SEC_} ${_END_NANO_SEC_}
 
 	if [ ${_END_SEC_} -eq ${_START_SEC_} ]; then
 		# This case implies end seconds equal start seconds, we will have the end nanosec higher than start nanosec.
@@ -78,9 +79,6 @@ __EXECUTION_TIME__()
 
 	_EXEC_NANO_=$((${_EXEC_NANO_}/1000))
 	_EXEC_TIME_=$(printf "%d.%06d" ${_EXEC_SEC_} ${_EXEC_NANO_})
-
-	#printf "3. Start sec: %s, Start nanosec: %s, Stop sec: %s, Stop nano:%s\n" ${_START_SEC_} ${_START_NANO_SEC_} ${_END_SEC_} ${_END_NANO_SEC_}
-	#printf "Exec: %s / %s\n" ${_EXEC_SEC_} ${_EXEC_NANO_}
 
 	printf "Execution time: %0.06fs\n" ${_EXEC_TIME_}
 }
