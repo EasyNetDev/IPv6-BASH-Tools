@@ -387,7 +387,7 @@ ipv6_skip_compression_set()
 	__SKIP_IPV6_COMPRESSION__=1
 }
 
-ipv6_skip_compression__reset()
+ipv6_skip_compression_reset()
 {
 	__SKIP_IPV6_COMPRESSION__=0
 }
