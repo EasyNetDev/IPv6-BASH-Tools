@@ -51,7 +51,7 @@
 
 __OLD_IFS_IDX__=0
 __SKIP_IPV6_CHECK__=0
-
+__SKIP_IPV6_COMPRESSION__=0
 
 if [ -z "${__SHOW_INFO__}" ]; then
 	__SHOW_INFO__=1
@@ -380,6 +380,16 @@ ipv6_check_skip_set()
 ipv6_check_skip_reset()
 {
 	__SKIP_IPV6_CHECK__=0
+}
+
+ipv6_skip_compression_set()
+{
+	__SKIP_IPV6_COMPRESSION__=1
+}
+
+ipv6_skip_compression__reset()
+{
+	__SKIP_IPV6_COMPRESSION__=0
 }
 
 ipv6_check_errno()
@@ -1218,9 +1228,13 @@ ipv6_first_subnet_address()
 
 	done
 
-	# Compress IPv6, but without rechecking the IPv6.
-	__IPv6__=$(ipv6_compress "${__newIPv6__}")
-	${_ECHO_DEBUG_4_} "${__FN_NAME__}: Compressed IPv6 ${__IPv6__}"
+	# Skip compression if ipv6_skip_compression_set() was called.
+	# Sometimes we don't need the compressed IPv6 yet.
+	if [ ${__SKIP_IPV6_COMPRESSION__} -eq 0 ]; then
+		# Compress IPv6, but without rechecking the IPv6.
+		__IPv6__=$(ipv6_compress "${__newIPv6__}")
+		${_ECHO_DEBUG_4_} "${__FN_NAME__}: Compressed IPv6 ${__IPv6__}"
+	fi
 
 	# Re-enable the global ipv6_check() for ipv6_compress and ipv6_decompress to use ipv6_check().
 	ipv6_check_skip_reset
