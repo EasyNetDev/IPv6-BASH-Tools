@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# DASH IPv6 lib to manipulate IPv6 addresses
+# SHELL/DASH IPv6 lib to manipulate IPv6 addresses
 # Example script
 #
 # Copyright (R) EasyNet Consuling SRL, Romania
@@ -17,17 +17,17 @@
 SCRIPT_PATH=$(readlink -f $0)
 SCRIPT_PATH=$(dirname ${SCRIPT_PATH})
 
-if [ -f "${SCRIPT_PATH}/libipv6-tools.dash" ]; then
-	. ${SCRIPT_PATH}/libipv6-tools.dash
+if [ -f "${SCRIPT_PATH}/libipv6-tools.sh" ]; then
+	. ${SCRIPT_PATH}/libipv6-tools.sh
 else
-	echo "ERROR: Missing ipv6-tools.dash lib!"
+	echo "ERROR: Missing ipv6-tools.sh lib!"
 	exit 1
 fi
 
-if [ -f "${SCRIPT_PATH}/exec_time.dash" ]; then
-	. ${SCRIPT_PATH}/exec_time.dash
+if [ -f "${SCRIPT_PATH}/exec_time.sh" ]; then
+	. ${SCRIPT_PATH}/exec_time.sh
 else
-	echo "ERROR: Missing exec_time.dash lib!"
+	echo "ERROR: Missing exec_time.sh lib!"
 	exit 1
 fi
 

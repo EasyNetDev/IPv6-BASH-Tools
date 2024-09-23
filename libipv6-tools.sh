@@ -1,9 +1,10 @@
 #!/bin/sh
 
-# DASH Tools to manipulate IPv6 addresses. This version is using non ARRAY workaround to be more portable over the systems
-# DHClient is using by default /bin/sh which in Debian for example is using DASH. Trying to use the BASH version will
-# DASH commands needes by this script:
-#  1. DASH/SHELL or similar shell interpreter
+# SHELL/DASH Tools to manipulate IPv6 addresses. This version is using non ARRAY workaround to be more portable over the systems
+# DHClient is using by default /bin/sh which in Debian for example is using SHELL/DASH. Trying to use the BASH version will fail to run and DHClient will refuse the IPv4 address.
+#
+# SHELL/DASH commands needes by this script:
+#  1. SHELL/DASH or similar shell interpreter
 #  2. printf builtin or from coreutils. DASH has a builtin printf
 #
 # Avaiable functions:
@@ -22,13 +23,13 @@
 #
 # _echo_* functions can be override using _ECHO_* variable to point to another function
 #
-# If __DEBUG__ is used, some debug information will be showen for troubleshoot. There are 5 levels of debugging. Level 5 enables DASH/SHELL tracing.
+# If __DEBUG__ is used, some debug information will be showen for troubleshoot. There are 5 levels of debugging. Level 5 enables SHELL/DASH tracing.
 # _echo_* functions can be override using _ECHO_* variable to point to another function
 #
 # To disable warnings to be displayed, set __SHOW_WARNINGS__=0
 # To disable errors to be displayed, set __SHOW_ERRORS__=0
 #
-# DASH/SHELL has an issue using IFS=$' \t\n', like BASH. Even I'm unset IFS, I'm still geting errors in my functions.
+# SHELL/DASH has an issue using IFS=$' \t\n', like BASH. Even I'm unset IFS, I'm still geting errors in my functions.
 # To fix it, we have to set it like this:
 #IFS=" \t
 #"
@@ -38,7 +39,7 @@
 # __save_IFS()     -> save current IFS in __OLD_IFS_X__, using index __OLD_IFS_IDX__, to be restored later by __restore_IFS(). Each time we enter in a function, we have to call this function.
 # __restore_IFS()  -> restore the newest __OLD_IFS_X__, using index __OLD_IFS_IDX__. Each time we exit from the function (before return or in the last line of the function) we need to call this funcion.
 # __set_IFS()      -> set IFS to a desired delimiter.
-# __default_IFS()  -> set DASH/SHELL default IFS.
+# __default_IFS()  -> set SHELL/DASH default IFS.
 #
 #
 # This script can be used for free.
@@ -107,7 +108,7 @@ else
 		;;
 	esac
 	if [ ${__DEBUG__} -ge 5 ]; then
-		# Enable DASH script debugging
+		# Enable SHELL/DASH script debugging
 		set -x
 	fi
 fi
@@ -697,7 +698,7 @@ ipv6_compress()
 
 		${_ECHO_DEBUG_3_} "${__FN_NAME__}: We processing sub-block ${__SUBBLOCK__} on index ${__IDX__}"
 
-		# DASH can't do HEXA checks. We need to change to decimal.
+		# SHELL/DASH can't do HEXA checks. We need to change to decimal.
 		__RESULT__=$(printf "%d" "0x${__SUBBLOCK__}")
 
 		# Check if current __SUBBLOCK__ is 0x0

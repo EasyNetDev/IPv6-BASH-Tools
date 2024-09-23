@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# DASH lib to calculate execution time of a command.
-# DASH doesn't implement "time" command.
+# SHELL/DASH lib to calculate execution time of a command.
+# SHELL/DASH doesn't implement "time" command.
 #
 # Usage:
 # __START_MEASURE__
