@@ -10,7 +10,6 @@
 #  2. ipv6_leading_zero_compression		- Returns a compress format of an IPv6 from leading 0s.
 #  3. ipv6_uncompress					- Returns an uncompressed format of an IPv6.
 #  4. ipv6_network_address				- Returns the first IPv6 address of a given IPv6 subnet.
-#  5. ipv6_last_subnet_address			- Returns the last IPv6 address of a given IPv6 subnet.
 #  6. ipv6_check						- Checks if the given string is a valid IPv6 address.
 #
 # All functions needs first argument to be a valid IPv6 and second argument optional which is the name of a global variable (not the variable like $VAR, just VAR) where to store the result.
@@ -812,35 +811,3 @@ ipv6_network_address()
 	__restore_IFS
 	return 0
 }
-
-ipv6_last_subnet_address()
-{
-	# Calculate the last address of IPv6 using the prefix
-	# Arguments:
-	#   $1 - IPv6 subnet and optional prefix (IPv6 or IPv6/PREFIX).
-	#
-	# Optional Arguments:
-	#   $2 - IPv6 prefix (value between 1 to 128)
-	#   $3 - Name of global variable where we will store the result. Use only just "VAR", not "$VAR"
-	#
-	# Returns:
-	#   IPv6 first address of the subnet.
-	#
-	# Exits:
-	#    1 - in case the IPv6 address is invalid.
-	#
-	# Output:
-	#   In case argument $2 is missing, print the result to output.
-
-	local OLD_IFS
-
-	# Reset IFS to default. Sometimes if IFS is set somewhere in the code, can lead to errors!
-	__save_IFS
-	__default_IFS
-
-	:
-
-	# Restore previous IFS
-	IFS=${OLD_IFS}
-}
-
