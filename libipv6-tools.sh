@@ -11,7 +11,7 @@
 #  1. ipv6_compress						- Returns a compress format of an IPv6
 #  2. ipv6_leading_zero_compression		- Returns a compress format of an IPv6 from leading 0s.
 #  3. ipv6_decompress					- Returns an uncompressed format of an IPv6.
-#  4. ipv6_first_subnet_address			- Returns the first IPv6 address of a given IPv6 subnet.
+#  4. ipv6_network_address				- Returns the first IPv6 address of a given IPv6 subnet.
 #  5. ipv6_last_subnet_address			- Returns the last IPv6 address of a given IPv6 subnet.
 #  6. ipv6_check						- Checks if the given string is a valid IPv6 address.
 #
@@ -1094,7 +1094,7 @@ ipv6_leading_zero_compression()
 	return 0
 }
 
-ipv6_first_subnet_address()
+ipv6_network_address()
 {
 	# Calculate the first address of IPv6 using the prefix
 	# Arguments:

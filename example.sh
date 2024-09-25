@@ -141,7 +141,7 @@ echo "5. IPv6 get first address of the subnet:"
 IPv6_TEST="1abc:2def:ffff:ffff::ffff"
 	for PREFIX in `seq 28 48`; do
 		__START_MEASURE__
-		ipv6_first_subnet_address "${IPv6_TEST}/${PREFIX}" "IPv6_FIRST_ADDRESS"
+		ipv6_network_address "${IPv6_TEST}/${PREFIX}" "IPv6_FIRST_ADDRESS"
 		RET=$?
 		__END_MEASURE__
 
