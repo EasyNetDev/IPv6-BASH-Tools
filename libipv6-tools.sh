@@ -36,8 +36,8 @@
 # And in this way is setting <space><tab><newline> correctly.
 #
 #I've created 4 functions:
-# __save_IFS()     -> save current IFS in __OLD_IFS_X__, using index __OLD_IFS_IDX__, to be restored later by __restore_IFS(). Each time we enter in a function, we have to call this function.
-# __restore_IFS()  -> restore the newest __OLD_IFS_X__, using index __OLD_IFS_IDX__. Each time we exit from the function (before return or in the last line of the function) we need to call this funcion.
+# __save_IFS()     -> save current IFS in __OLD_IFS_X__, using index __OLD_IFS_IDX__, to be restored later by __restore_IFS(). Each time we enter in a function where we need to change IFS, we have to call this function.
+# __restore_IFS()  -> restore the newest __OLD_IFS_X__, using index __OLD_IFS_IDX__. Each time we exit from a function where we previously used __save_IFS() (before return or in the last line of the function) we need to call this funcion.
 # __set_IFS()      -> set IFS to a desired delimiter.
 # __default_IFS()  -> set SHELL/DASH default IFS.
 #
