@@ -196,7 +196,6 @@ __save_IFS() {
 }
 
 __restore_IFS() {
-
 	# Decrese the stack ID.
 	__OLD_IFS_IDX__=$((__OLD_IFS_IDX__-=1))
 
@@ -232,7 +231,7 @@ __set_IFS_tab() {
 
 __default_IFS() {
 	unset IFS
-	# DASH/SHELL is a little bit stupid. If you set
+	# DASH/SHELL is a little bit stupid. If you set IFS to
 	#IFS=" \t
 	#"
 	# Then \t will be interpreted as \ and t.
